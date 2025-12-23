@@ -302,19 +302,32 @@
   justify-content: center;
   z-index: 50;
   pointer-events: none;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .mmvp-play-icon-large {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.5);
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
 }
 
 .mmvp-play-icon-large svg {
-  width: 80px;
-  height: 80px;
+  width: 88px;
+  height: 88px;
+  fill: rgba(255, 255, 255, 0.4);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
+@media (min-width: 768px) {
+  .mmvp-play-icon-large svg {
+    width: 72px;
+    height: 72px;
+  }
 }
 
 .mmvp-play-btn {
