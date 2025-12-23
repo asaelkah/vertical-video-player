@@ -363,20 +363,18 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: env(safe-area-inset-bottom, 0);
   height: 5px;
   background: rgba(255,255,255,0.3);
   z-index: 99999;
   cursor: pointer;
-  /* Safe area padding for iOS */
-  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
-/* Ensure visibility on all devices */
+/* Ensure visibility on all mobile devices */
 @media (max-width: 768px) {
   .mmvp-progress-bottom {
-    height: 6px;
-    bottom: 0;
+    height: 8px;
+    bottom: calc(env(safe-area-inset-bottom, 0) + 8px);
   }
 }
 
@@ -468,12 +466,12 @@
 /* Mobile adjustments */
 @media (max-width: 768px) {
   .mmvp-time-display {
-    bottom: 18px;
+    bottom: calc(env(safe-area-inset-bottom, 0) + 24px);
     font-size: 13px;
   }
   
   .mmvp-seek-preview {
-    bottom: 28px;
+    bottom: calc(env(safe-area-inset-bottom, 0) + 40px);
   }
 }
 
