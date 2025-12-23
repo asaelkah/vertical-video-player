@@ -72,7 +72,7 @@ export function VerticalPlayer({
     });
   }, [moments]);
 
-  // Touch swipe detection for closing on last video
+  // Touch swipe detection for closing on last video (mobile)
   const touchStartY = useRef(0);
   useEffect(() => {
     const container = containerRef.current;
@@ -100,6 +100,45 @@ export function VerticalPlayer({
       container.removeEventListener("touchend", handleTouchEnd);
     };
   }, [currentIndex, total, onClose]);
+
+  // Mouse wheel detection for closing on last video (desktop)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || mobile) return;
+
+    let scrollAccumulator = 0;
+    let scrollTimeout: ReturnType<typeof setTimeout>;
+
+    const handleWheel = (e: WheelEvent) => {
+      const isOnLastVideo = currentIndex === total - 1;
+      
+      if (isOnLastVideo && e.deltaY > 0) {
+        // Scrolling down on last video
+        scrollAccumulator += e.deltaY;
+        
+        // Reset accumulator after 300ms of no scrolling
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+          scrollAccumulator = 0;
+        }, 300);
+        
+        // If accumulated scroll is enough, close player
+        if (scrollAccumulator > 150) {
+          onClose?.();
+          scrollAccumulator = 0;
+        }
+      } else {
+        scrollAccumulator = 0;
+      }
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: true });
+    
+    return () => {
+      container.removeEventListener("wheel", handleWheel);
+      clearTimeout(scrollTimeout);
+    };
+  }, [currentIndex, total, onClose, mobile]);
 
   // Intersection Observer for video play/pause
   useEffect(() => {
