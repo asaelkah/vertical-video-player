@@ -181,25 +181,20 @@
 /* Video frame - centered container */
 .mmvp-video-frame {
   position: absolute;
-  top: 0;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   width: 100%;
   height: 100%;
   max-width: min(100vw, calc(100vh * 9 / 16));
   max-height: 100vh;
   overflow: hidden;
-  /* Ensure it respects safe areas on mobile */
-  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 @media (min-width: 768px) {
   .mmvp-video-frame {
-    top: 50%;
-    transform: translate(-50%, -50%);
     max-height: calc(100vh - 40px);
     border-radius: 12px;
-    padding-bottom: 0;
   }
 }
 
@@ -214,22 +209,15 @@
   transition: opacity 0.15s;
 }
 
-/* Progress bar - inside video frame, above safe area */
+/* Progress bar - inside video frame */
 .mmvp-progress-bottom {
   position: absolute;
-  bottom: env(safe-area-inset-bottom, 0);
+  bottom: 0;
   left: 0;
   right: 0;
   height: 3px;
   background: rgba(255,255,255,0.25);
   z-index: 100;
-}
-
-/* On mobile, move progress bar above bottom bar content */
-@media (max-width: 767px) {
-  .mmvp-progress-bottom {
-    bottom: calc(90px + env(safe-area-inset-bottom, 0));
-  }
 }
 
 .mmvp-progress-bar-fill {
@@ -394,22 +382,25 @@
 .mmvp-bottom-bar {
   position: absolute;
   bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 50px 20px 20px;
-  padding-bottom: max(20px, env(safe-area-inset-bottom, 0));
-  background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: min(100vw, calc(100vh * 9 / 16));
+  padding: 40px 20px 24px;
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
   z-index: 50;
   text-align: center;
   pointer-events: none;
-  max-width: min(100vw, calc(100vh * 9 / 16));
-  left: 50%;
-  transform: translateX(-50%);
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .mmvp-bottom-bar {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
 }
 
 @media (min-width: 768px) {
   .mmvp-bottom-bar {
-    padding: 40px 20px 24px;
     border-radius: 0 0 12px 12px;
   }
 }
