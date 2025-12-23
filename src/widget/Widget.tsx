@@ -16,16 +16,40 @@ const GRADIENTS = [
   "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
 ];
 
-// Video thumbnail - simple autoplay muted
-function VideoThumb({ src }: { src: string }) {
+// Video thumbnail - autoplay muted
+function VideoThumb({ src, title, index }: { src: string; title?: string; index: number }) {
+  const [hasError, setHasError] = useState(false);
+  
+  const gradient = GRADIENTS[index % GRADIENTS.length];
+
+  if (hasError) {
+    return (
+      <div 
+        style={{
+          width: "100%",
+          height: "100%",
+          background: gradient,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <span style={{ color: "white", fontSize: "14px", textAlign: "center", fontWeight: 600, padding: "16px" }}>
+          {title || "Video"}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <video
       src={`${src}#t=0.1`}
-      autoPlay
       muted
       playsInline
+      autoPlay
       loop
       preload="auto"
+      onError={() => setHasError(true)}
       style={{
         width: "100%",
         height: "100%",
@@ -70,7 +94,7 @@ function CardThumbnail({ moment, index }: { moment: Moment; index: number }) {
         />
       );
     }
-    return <VideoThumb src={videoMoment.src} />;
+    return <VideoThumb src={videoMoment.src} title={videoMoment.title} index={index} />;
   }
   
   return <div style={{ width: "100%", height: "100%", background: GRADIENTS[index % GRADIENTS.length] }} />;
@@ -116,8 +140,29 @@ export function Widget({ hostEl }: { hostEl: HTMLElement }) {
     }
   }, []);
 
-  // Note: Auto-loop removed to prevent alignment issues when returning from player
-  // Infinite scroll is handled via arrow buttons only
+  // Auto-loop on scroll end (for touch/drag scrolling)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    let scrollTimeout: ReturnType<typeof setTimeout>;
+    
+    const handleScroll = () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        // If scrolled to the very end, loop to start
+        if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) {
+          el.scrollTo({ left: 0, behavior: "smooth" });
+        }
+      }, 150);
+    };
+
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, []);
 
   const openPlayer = (originalIndex: number) => {
     setSelectedIndex(originalIndex);

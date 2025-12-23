@@ -83,24 +83,26 @@ export function VerticalPlayer({
     }
   }, [initialIndex]);
 
-  // Eagerly preload all videos - run periodically until loaded
+  // Eagerly preload all ad videos - run periodically until all ads are loaded
   useEffect(() => {
-    const preloadVideos = () => {
+    const preloadAds = () => {
       moments.forEach((moment, i) => {
-        const video = videoRefs.current[i];
-        if (video && video.readyState < 3) {
-          video.preload = "auto";
-          video.load();
+        if (moment.type === "ad") {
+          const video = videoRefs.current[i];
+          if (video && video.readyState < 4) {
+            video.preload = "auto";
+            video.load();
+          }
         }
       });
     };
     
     // Initial preload
-    preloadVideos();
+    preloadAds();
     
-    // Retry preloading every 500ms for 10 seconds
-    const interval = setInterval(preloadVideos, 500);
-    const timeout = setTimeout(() => clearInterval(interval), 10000);
+    // Retry preloading every 500ms for 5 seconds to ensure ads are loaded
+    const interval = setInterval(preloadAds, 500);
+    const timeout = setTimeout(() => clearInterval(interval), 5000);
     
     return () => {
       clearInterval(interval);
@@ -195,37 +197,25 @@ export function VerticalPlayer({
               video.currentTime = 0;
               video.muted = muted;
               
-              // Robust play function with retries
-              let playAttempts = 0;
-              const maxAttempts = 5;
-              
+              // For ads, ensure video is loaded before playing
               const playVideo = () => {
-                if (playAttempts >= maxAttempts) return;
-                playAttempts++;
-                
                 video.play().catch(() => {
                   // Try muted autoplay
                   video.muted = true;
-                  video.play().catch(() => {
-                    // Retry after delay
-                    if (playAttempts < maxAttempts) {
-                      setTimeout(playVideo, 200);
-                    }
-                  });
+                  video.play().catch(() => {});
                 });
               };
               
-              // If video not ready, load and wait
-              if (video.readyState < 2) {
+              if (moment?.type === "ad" && video.readyState < 3) {
+                // Ad not ready - load and wait
                 video.load();
                 const handleCanPlay = () => {
                   playVideo();
-                  video.removeEventListener("canplaythrough", handleCanPlay);
+                  video.removeEventListener("canplay", handleCanPlay);
                 };
-                video.addEventListener("canplaythrough", handleCanPlay);
-                // Also try playing after delays as fallback
+                video.addEventListener("canplay", handleCanPlay);
+                // Also try playing after a short delay as fallback
                 setTimeout(playVideo, 300);
-                setTimeout(playVideo, 600);
               } else {
                 playVideo();
               }
@@ -274,8 +264,7 @@ export function VerticalPlayer({
 
     const handleTimeUpdate = () => {
       if (video.duration && !isSeeking) {
-        const prog = video.currentTime / video.duration;
-        setProgress(prog);
+        setProgress(video.currentTime / video.duration);
         setCurrentTime(video.currentTime);
         setDuration(video.duration);
       }
@@ -411,7 +400,7 @@ export function VerticalPlayer({
                   src={getVideoSrc(moment)}
                   playsInline
                   muted={muted}
-                  preload="auto"
+                  preload={isNear || moment.type === "ad" ? "auto" : "metadata"}
                   onEnded={() => handleVideoEnd(i)}
                   onCanPlay={() => {
                     // Clear loading state when video can play
