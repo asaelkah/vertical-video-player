@@ -5,18 +5,14 @@ import { getSeen, markSeen } from "./seen";
 
 const isMobile = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
-// Session storage for skipped ads
-const skippedAdsKey = "mmvp_skipped_ads";
+// In-memory storage for skipped ads (resets on page refresh)
+let skippedAdsInSession = new Set<string>();
+
 const getSkippedAds = (): Set<string> => {
-  try {
-    const stored = sessionStorage.getItem(skippedAdsKey);
-    return stored ? new Set(JSON.parse(stored)) : new Set();
-  } catch { return new Set(); }
+  return skippedAdsInSession;
 };
 const markAdSkipped = (id: string) => {
-  const skipped = getSkippedAds();
-  skipped.add(id);
-  sessionStorage.setItem(skippedAdsKey, JSON.stringify([...skipped]));
+  skippedAdsInSession.add(id);
 };
 
 export function VerticalPlayer({
