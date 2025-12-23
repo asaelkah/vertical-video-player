@@ -42,6 +42,7 @@ export function VerticalPlayer({
   const total = moments.length;
   const [index, setIndex] = useState(initialIndex);
   const [muted, setMuted] = useState(false); // Start unmuted
+  const [paused, setPaused] = useState(false); // Pause state
   const [hasInteracted, setHasInteracted] = useState(true); // Assume user clicked to open player
   const [progress, setProgress] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -131,6 +132,18 @@ export function VerticalPlayer({
     }
   }, [muted, index, hasInteracted]);
 
+  // Sync pause state to current video
+  useEffect(() => {
+    const video = videoRefs.current[index];
+    if (!video) return;
+    
+    if (paused) {
+      video.pause();
+    } else {
+      video.play().catch(() => {});
+    }
+  }, [paused, index]);
+
   // Track progress
   useEffect(() => {
     const video = videoRefs.current[index];
@@ -157,13 +170,17 @@ export function VerticalPlayer({
   const goNext = useCallback(() => {
     if (index < total - 1) {
       setIndex(i => i + 1);
+      setPaused(false); // Resume when navigating
     } else {
       onClose?.();
     }
   }, [index, total, onClose]);
 
   const goPrev = useCallback(() => {
-    if (index > 0) setIndex(i => i - 1);
+    if (index > 0) {
+      setIndex(i => i - 1);
+      setPaused(false); // Resume when navigating
+    }
   }, [index]);
 
   // Handle user interaction - unmute
@@ -246,15 +263,11 @@ export function VerticalPlayer({
 
   const handleTap = useCallback((e: React.MouseEvent) => {
     handleFirstInteraction();
-    if (isMobile()) {
-      if (!didSwipe.current) setMuted(m => !m);
-    } else {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      if (x < rect.width / 2) goPrev();
-      else goNext();
+    // Toggle pause on tap/click (both mobile and desktop)
+    if (!didSwipe.current) {
+      setPaused(p => !p);
     }
-  }, [goPrev, goNext, handleFirstInteraction]);
+  }, [handleFirstInteraction]);
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
