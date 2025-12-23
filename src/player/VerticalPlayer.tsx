@@ -59,6 +59,19 @@ export function VerticalPlayer({
     }
   }, [initialIndex]);
 
+  // Eagerly preload all ad videos on mount
+  useEffect(() => {
+    moments.forEach((moment, i) => {
+      if (moment.type === "ad") {
+        const video = videoRefs.current[i];
+        if (video) {
+          video.preload = "auto";
+          video.load();
+        }
+      }
+    });
+  }, [moments]);
+
   // Touch swipe detection for closing on last video
   const touchStartY = useRef(0);
   useEffect(() => {
@@ -252,7 +265,7 @@ export function VerticalPlayer({
                   src={getVideoSrc(moment)}
                   playsInline
                   muted={muted}
-                  preload={isNear ? "auto" : "metadata"}
+                  preload={isNear || moment.type === "ad" ? "auto" : "metadata"}
                   onEnded={() => handleVideoEnd(i)}
                 />
 
