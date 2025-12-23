@@ -53,9 +53,10 @@ function VideoThumb({ src, title, index }: { src: string; title?: string; index:
       style={{
         width: "100%",
         height: "100%",
-        objectFit: "cover",
+        objectFit: "contain",
+        objectPosition: "center",
         display: "block",
-        background: "#1a1a2e",
+        background: "#000",
       }}
     />
   );
