@@ -428,7 +428,7 @@ export function VerticalPlayer({
         </button>
       )}
 
-      {/* Progress bar - fixed at bottom of screen, interactive on desktop */}
+      {/* Progress bar - fixed at bottom of screen, interactive on both mobile and desktop */}
       <div 
         className="mmvp-progress-bottom"
         onClick={(e) => {
@@ -463,6 +463,35 @@ export function VerticalPlayer({
           
           document.addEventListener("mousemove", handleMouseMove);
           document.addEventListener("mouseup", handleMouseUp);
+        }}
+        onTouchStart={(e) => {
+          e.stopPropagation();
+          const progressBar = e.currentTarget;
+          const video = videoRefs.current[currentIndex];
+          if (!video || !video.duration) return;
+          
+          const seekToTouch = (touch: Touch) => {
+            const rect = progressBar.getBoundingClientRect();
+            const x = Math.max(0, Math.min(touch.clientX - rect.left, rect.width));
+            const percent = x / rect.width;
+            video.currentTime = percent * video.duration;
+            setProgress(percent);
+          };
+          
+          seekToTouch(e.touches[0]);
+          
+          const handleTouchMove = (moveEvent: TouchEvent) => {
+            moveEvent.preventDefault();
+            seekToTouch(moveEvent.touches[0]);
+          };
+          
+          const handleTouchEnd = () => {
+            document.removeEventListener("touchmove", handleTouchMove);
+            document.removeEventListener("touchend", handleTouchEnd);
+          };
+          
+          document.addEventListener("touchmove", handleTouchMove, { passive: false });
+          document.addEventListener("touchend", handleTouchEnd);
         }}
       >
         <div className="mmvp-progress-bar-fill" style={{ width: `${progress * 100}%` }} />
