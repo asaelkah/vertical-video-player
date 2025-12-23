@@ -163,29 +163,8 @@ export function Widget({ hostEl }: { hostEl: HTMLElement }) {
     }
   }, []);
 
-  // Auto-loop on scroll end (for touch/drag scrolling)
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-
-    let scrollTimeout: ReturnType<typeof setTimeout>;
-    
-    const handleScroll = () => {
-      clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(() => {
-        // If scrolled to the very end, loop to start
-        if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) {
-          el.scrollTo({ left: 0, behavior: "smooth" });
-        }
-      }, 150);
-    };
-
-    el.addEventListener("scroll", handleScroll, { passive: true });
-    return () => {
-      el.removeEventListener("scroll", handleScroll);
-      clearTimeout(scrollTimeout);
-    };
-  }, []);
+  // Note: Auto-loop removed to prevent alignment issues when returning from player
+  // Infinite scroll is handled via arrow buttons only
 
   const openPlayer = (originalIndex: number) => {
     setSelectedIndex(originalIndex);
