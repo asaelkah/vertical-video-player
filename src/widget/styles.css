@@ -320,27 +320,22 @@
 /* Progress bar - PROMINENT RED - fixed at bottom of screen */
 .mmvp-progress-bottom {
   position: fixed;
-  bottom: 0;
   left: 0;
   right: 0;
-  height: 4px;
+  bottom: 0;
+  height: 5px;
   background: rgba(255,255,255,0.3);
-  z-index: 9999;
+  z-index: 99999;
   cursor: pointer;
-  /* Larger hit area for easier clicking */
-  padding: 8px 0;
-  margin: -8px 0;
-  background-clip: content-box;
+  /* Safe area padding for iOS */
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
-.mmvp-progress-bottom:hover {
-  height: 6px;
-}
-
-/* Account for safe area on iOS */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
+/* Ensure visibility on all devices */
+@media (max-width: 768px) {
   .mmvp-progress-bottom {
-    bottom: env(safe-area-inset-bottom);
+    height: 6px;
+    bottom: 0;
   }
 }
 
@@ -352,8 +347,15 @@
   pointer-events: none;
 }
 
-.mmvp-progress-bottom:hover .mmvp-progress-bar-fill {
-  box-shadow: 0 0 8px rgba(255, 0, 0, 0.5);
+/* Desktop hover effect */
+@media (min-width: 769px) {
+  .mmvp-progress-bottom:hover {
+    height: 8px;
+  }
+  
+  .mmvp-progress-bottom:hover .mmvp-progress-bar-fill {
+    box-shadow: 0 0 8px rgba(255, 0, 0, 0.5);
+  }
 }
 
 /* ========== PROGRESS BAR - BOTTOM - MODERN GRADIENT ========== */
