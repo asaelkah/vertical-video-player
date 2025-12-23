@@ -13,6 +13,8 @@ export interface MomentBase {
   title?: string;
   taxonomy?: MomentTaxonomy;
   duration_ms?: number;
+  tags?: string[]; // For recommendation engine
+  globalPopularity?: number; // 0-1 trending score
 }
 
 export interface VideoMoment extends MomentBase {
