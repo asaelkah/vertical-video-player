@@ -415,10 +415,10 @@
     transform: translate(-50%, 0);
     top: auto;
     bottom: 60px;
-    width: 360px;
-    max-width: 360px;
-    padding: 20px;
-    border-radius: 16px;
+    width: 250px;
+    max-width: 250px;
+    padding: 14px;
+    border-radius: 12px;
   }
 }
 
@@ -532,33 +532,33 @@
 
 @media (min-width: 768px) {
   .mmvp-sponsor-header {
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 10px;
+    margin-bottom: 10px;
   }
   
   .mmvp-sponsor-logo {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
   }
   
   .mmvp-sponsor-logo svg {
-    width: 28px;
-    height: 28px;
+    width: 20px;
+    height: 20px;
   }
   
   .mmvp-sponsor-name {
-    font-size: 16px;
-    margin-bottom: 2px;
+    font-size: 13px;
+    margin-bottom: 1px;
   }
   
   .mmvp-sponsor-label {
-    font-size: 12px;
+    font-size: 10px;
   }
   
   .mmvp-sponsor-cta {
-    padding: 14px 24px;
-    font-size: 15px;
+    padding: 10px 18px;
+    font-size: 12px;
   }
 }
 
