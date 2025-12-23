@@ -72,6 +72,7 @@
 
 .mmvp-popular-scroll {
   display: flex;
+  align-items: flex-start;
   gap: 12px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
@@ -89,13 +90,12 @@
 
 .mmvp-popular-scroll::-webkit-scrollbar { display: none; }
 
-/* MLB-style cards - vertical format */
-/* Cards with 9:16 aspect ratio to match video */
+/* MLB-style cards - vertical format with fixed dimensions */
 .mmvp-pop-card {
   flex: 0 0 auto;
   position: relative;
   width: 200px;
-  aspect-ratio: 9 / 16;
+  height: 356px; /* 9:16 ratio = 200 * 16/9 */
   border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
@@ -113,12 +113,14 @@
 @media (min-width: 768px) {
   .mmvp-pop-card {
     width: 220px;
+    height: 391px; /* 220 * 16/9 */
   }
 }
 
 @media (max-width: 480px) {
   .mmvp-pop-card {
     width: 160px;
+    height: 284px; /* 160 * 16/9 */
   }
 }
 
