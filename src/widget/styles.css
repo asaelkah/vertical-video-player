@@ -385,6 +385,86 @@
   border-radius: 0;
   transition: width 0.1s linear;
   pointer-events: none;
+  position: relative;
+}
+
+/* Progress handle (dot) */
+.mmvp-progress-handle {
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.mmvp-progress-bottom:hover .mmvp-progress-handle,
+.mmvp-progress-bottom:active .mmvp-progress-handle {
+  opacity: 1;
+}
+
+/* Time display */
+.mmvp-time-display {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 99998;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  pointer-events: none;
+}
+
+.mmvp-time-current {
+  color: #fff;
+}
+
+.mmvp-time-separator {
+  color: rgba(255,255,255,0.6);
+}
+
+.mmvp-time-duration {
+  color: rgba(255,255,255,0.6);
+}
+
+/* Seek preview thumbnail */
+.mmvp-seek-preview {
+  position: fixed;
+  bottom: 70px;
+  transform: translateX(-50%);
+  z-index: 99998;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  pointer-events: none;
+}
+
+.mmvp-seek-preview-video {
+  width: 120px;
+  height: 214px; /* 9:16 ratio */
+  object-fit: cover;
+  display: block;
+}
+
+.mmvp-seek-preview-time {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.7);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 /* Desktop hover effect */
@@ -395,6 +475,23 @@
   
   .mmvp-progress-bottom:hover .mmvp-progress-bar-fill {
     box-shadow: 0 0 8px rgba(255, 0, 0, 0.5);
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .mmvp-time-display {
+    bottom: 18px;
+    font-size: 13px;
+  }
+  
+  .mmvp-seek-preview {
+    bottom: 60px;
+  }
+  
+  .mmvp-seek-preview-video {
+    width: 100px;
+    height: 178px;
   }
 }
 

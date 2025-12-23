@@ -37,6 +37,10 @@ export function VerticalPlayer({
   const [progress, setProgress] = useState(0);
   const [exiting, setExiting] = useState(false);
   const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>({});
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekPosition, setSeekPosition] = useState<{ x: number; percent: number } | null>(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -47,6 +51,14 @@ export function VerticalPlayer({
   const current = moments[currentIndex];
   const mobile = isMobile();
   const BASE_URL = import.meta.env.BASE_URL || "/";
+
+  // Format time as M:SS
+  const formatTime = (seconds: number) => {
+    if (!seconds || isNaN(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
   // Exit with animation
   const exitWithAnimation = useCallback(() => {
@@ -245,17 +257,34 @@ export function VerticalPlayer({
     }
   }, [paused, currentIndex]);
 
-  // Track progress
+  // Track progress, current time, and duration
   useEffect(() => {
     const video = videoRefs.current[currentIndex];
     if (!video) return;
 
     const handleTimeUpdate = () => {
-      if (video.duration) setProgress(video.currentTime / video.duration);
+      if (video.duration && !isSeeking) {
+        setProgress(video.currentTime / video.duration);
+        setCurrentTime(video.currentTime);
+        setDuration(video.duration);
+      }
     };
+    
+    const handleLoadedMetadata = () => {
+      setDuration(video.duration);
+    };
+    
     video.addEventListener("timeupdate", handleTimeUpdate);
-    return () => video.removeEventListener("timeupdate", handleTimeUpdate);
-  }, [currentIndex]);
+    video.addEventListener("loadedmetadata", handleLoadedMetadata);
+    
+    // Set initial duration if available
+    if (video.duration) setDuration(video.duration);
+    
+    return () => {
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+    };
+  }, [currentIndex, isSeeking]);
 
   // Track moment view
   useEffect(() => {
@@ -461,6 +490,35 @@ export function VerticalPlayer({
         </button>
       )}
 
+      {/* Time display */}
+      <div className="mmvp-time-display" onClick={(e) => e.stopPropagation()}>
+        <span className="mmvp-time-current">{formatTime(isSeeking && seekPosition ? seekPosition.percent * duration : currentTime)}</span>
+        <span className="mmvp-time-separator"> / </span>
+        <span className="mmvp-time-duration">{formatTime(duration)}</span>
+      </div>
+
+      {/* Preview thumbnail when seeking */}
+      {isSeeking && seekPosition && (
+        <div 
+          className="mmvp-seek-preview"
+          style={{ left: `${seekPosition.x}px` }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <video
+            className="mmvp-seek-preview-video"
+            src={getVideoSrc(current)}
+            muted
+            playsInline
+            ref={(el) => {
+              if (el && seekPosition) {
+                el.currentTime = seekPosition.percent * duration;
+              }
+            }}
+          />
+          <div className="mmvp-seek-preview-time">{formatTime(seekPosition.percent * duration)}</div>
+        </div>
+      )}
+
       {/* Progress bar - fixed at bottom of screen, interactive on both mobile and desktop */}
       <div 
         className="mmvp-progress-bottom"
@@ -473,23 +531,35 @@ export function VerticalPlayer({
           const percent = x / rect.width;
           video.currentTime = percent * video.duration;
           setProgress(percent);
+          setCurrentTime(percent * video.duration);
         }}
         onMouseDown={(e) => {
           if (mobile) return;
           e.stopPropagation();
+          setIsSeeking(true);
           const progressBar = e.currentTarget;
           const video = videoRefs.current[currentIndex];
           if (!video || !video.duration) return;
           
-          const handleMouseMove = (moveEvent: MouseEvent) => {
+          const updateSeek = (clientX: number) => {
             const rect = progressBar.getBoundingClientRect();
-            const x = Math.max(0, Math.min(moveEvent.clientX - rect.left, rect.width));
+            const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
             const percent = x / rect.width;
             video.currentTime = percent * video.duration;
             setProgress(percent);
+            setCurrentTime(percent * video.duration);
+            setSeekPosition({ x: clientX - rect.left, percent });
+          };
+          
+          updateSeek(e.clientX);
+          
+          const handleMouseMove = (moveEvent: MouseEvent) => {
+            updateSeek(moveEvent.clientX);
           };
           
           const handleMouseUp = () => {
+            setIsSeeking(false);
+            setSeekPosition(null);
             document.removeEventListener("mousemove", handleMouseMove);
             document.removeEventListener("mouseup", handleMouseUp);
           };
@@ -499,6 +569,7 @@ export function VerticalPlayer({
         }}
         onTouchStart={(e) => {
           e.stopPropagation();
+          setIsSeeking(true);
           const progressBar = e.currentTarget;
           const video = videoRefs.current[currentIndex];
           if (!video || !video.duration) return;
@@ -509,6 +580,8 @@ export function VerticalPlayer({
             const percent = x / rect.width;
             video.currentTime = percent * video.duration;
             setProgress(percent);
+            setCurrentTime(percent * video.duration);
+            setSeekPosition({ x, percent });
           };
           
           seekToTouch(e.touches[0]);
@@ -519,6 +592,8 @@ export function VerticalPlayer({
           };
           
           const handleTouchEnd = () => {
+            setIsSeeking(false);
+            setSeekPosition(null);
             document.removeEventListener("touchmove", handleTouchMove);
             document.removeEventListener("touchend", handleTouchEnd);
           };
@@ -527,7 +602,9 @@ export function VerticalPlayer({
           document.addEventListener("touchend", handleTouchEnd);
         }}
       >
-        <div className="mmvp-progress-bar-fill" style={{ width: `${progress * 100}%` }} />
+        <div className="mmvp-progress-bar-fill" style={{ width: `${progress * 100}%` }}>
+          <div className="mmvp-progress-handle" />
+        </div>
       </div>
     </div>
   );
