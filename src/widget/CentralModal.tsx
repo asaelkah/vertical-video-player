@@ -9,7 +9,7 @@ export function CentralModal({
 }) {
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Lock body scroll
+  // Lock body scroll but allow scrolling inside modal
   useEffect(() => {
     const scrollY = window.scrollY;
     document.body.style.overflow = "hidden";
@@ -19,9 +19,6 @@ export function CentralModal({
     document.body.style.right = "0";
     document.body.style.width = "100%";
 
-    const preventTouch = (e: TouchEvent) => e.preventDefault();
-    document.addEventListener("touchmove", preventTouch, { passive: false });
-
     return () => {
       document.body.style.overflow = "";
       document.body.style.position = "";
@@ -29,7 +26,6 @@ export function CentralModal({
       document.body.style.left = "";
       document.body.style.right = "";
       document.body.style.width = "";
-      document.removeEventListener("touchmove", preventTouch);
       window.scrollTo(0, scrollY);
     };
   }, []);

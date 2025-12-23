@@ -129,6 +129,8 @@
   inset: 0;
   z-index: 999999;
   background: #000;
+  touch-action: pan-y; /* Allow vertical scrolling */
+  overscroll-behavior: contain;
 }
 
 /* ========== PLAYER WRAPPER ========== */
