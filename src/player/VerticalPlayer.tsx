@@ -35,14 +35,26 @@ export function VerticalPlayer({
   const [muted, setMuted] = useState(false);
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [exiting, setExiting] = useState(false);
+  const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>({});
   
   const containerRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadingTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   const current = moments[currentIndex];
   const mobile = isMobile();
+  const BASE_URL = import.meta.env.BASE_URL || "/";
+
+  // Exit with animation
+  const exitWithAnimation = useCallback(() => {
+    setExiting(true);
+    setTimeout(() => {
+      onClose?.();
+    }, 300); // Match CSS transition duration
+  }, [onClose]);
 
   // Helpers
   const hasVideo = (m: typeof moments[0]) => m.type === "video" || m.type === "ad";
@@ -86,9 +98,9 @@ export function VerticalPlayer({
       const deltaY = touchStartY.current - e.changedTouches[0].clientY;
       const isOnLastVideo = currentIndex === total - 1;
       
-      // Swipe up on last video (delta > 50px) - close player
+      // Swipe up on last video (delta > 50px) - close player with animation
       if (isOnLastVideo && deltaY > 50) {
-        onClose?.();
+        exitWithAnimation();
       }
     };
 
@@ -99,7 +111,7 @@ export function VerticalPlayer({
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [currentIndex, total, onClose]);
+  }, [currentIndex, total, exitWithAnimation]);
 
   // Mouse wheel detection for closing on last video (desktop)
   useEffect(() => {
@@ -122,9 +134,9 @@ export function VerticalPlayer({
           scrollAccumulator = 0;
         }, 300);
         
-        // If accumulated scroll is enough, close player
+        // If accumulated scroll is enough, close player with animation
         if (scrollAccumulator > 150) {
-          onClose?.();
+          exitWithAnimation();
           scrollAccumulator = 0;
         }
       } else {
@@ -138,7 +150,7 @@ export function VerticalPlayer({
       container.removeEventListener("wheel", handleWheel);
       clearTimeout(scrollTimeout);
     };
-  }, [currentIndex, total, onClose, mobile]);
+  }, [currentIndex, total, exitWithAnimation, mobile]);
 
   // Intersection Observer for video play/pause
   useEffect(() => {
@@ -225,19 +237,19 @@ export function VerticalPlayer({
       if (idx < total - 1) {
         sectionRefs.current[idx + 1]?.scrollIntoView({ behavior: "smooth" });
       } else {
-        onClose?.();
+        exitWithAnimation();
       }
     }
-  }, [currentIndex, total, onClose]);
+  }, [currentIndex, total, exitWithAnimation]);
 
   // Navigation
   const goNext = useCallback(() => {
     if (currentIndex < total - 1) {
       sectionRefs.current[currentIndex + 1]?.scrollIntoView({ behavior: "smooth" });
     } else {
-      onClose?.();
+      exitWithAnimation();
     }
-  }, [currentIndex, total, onClose]);
+  }, [currentIndex, total, exitWithAnimation]);
 
   const goPrev = useCallback(() => {
     if (currentIndex > 0) {
@@ -273,7 +285,7 @@ export function VerticalPlayer({
   };
 
   return (
-    <div className="mmvp-player-wrapper">
+    <div className={`mmvp-player-wrapper ${exiting ? "mmvp-exiting" : ""}`}>
       {/* Scrollable container with CSS snap */}
       <div ref={containerRef} className="mmvp-scroll-container">
         {moments.map((moment, i) => {
@@ -298,14 +310,43 @@ export function VerticalPlayer({
 
               {/* Video frame */}
               <div className="mmvp-video-frame">
+                {/* Loading placeholder - SI logo watermark (only shows if loading takes > 500ms) */}
+                {loadingStates[i] && (
+                  <div className="mmvp-loading-placeholder">
+                    <img src={`${BASE_URL}si-logo.svg`} alt="Loading..." className="mmvp-loading-logo" />
+                  </div>
+                )}
+                
                 <video
-                  ref={(el) => { videoRefs.current[i] = el; }}
+                  ref={(el) => { 
+                    videoRefs.current[i] = el;
+                    // Start loading timer when video ref is set
+                    if (el && isNear) {
+                      // Clear any existing timer
+                      if (loadingTimers.current[i]) {
+                        clearTimeout(loadingTimers.current[i]);
+                      }
+                      // Set loading state after 500ms if not ready
+                      loadingTimers.current[i] = setTimeout(() => {
+                        if (el.readyState < 3) {
+                          setLoadingStates(prev => ({ ...prev, [i]: true }));
+                        }
+                      }, 500);
+                    }
+                  }}
                   className="mmvp-video-element"
                   src={getVideoSrc(moment)}
                   playsInline
                   muted={muted}
                   preload={isNear || moment.type === "ad" ? "auto" : "metadata"}
                   onEnded={() => handleVideoEnd(i)}
+                  onCanPlay={() => {
+                    // Clear loading state when video can play
+                    if (loadingTimers.current[i]) {
+                      clearTimeout(loadingTimers.current[i]);
+                    }
+                    setLoadingStates(prev => ({ ...prev, [i]: false }));
+                  }}
                 />
 
                 {/* Play overlay when paused */}
