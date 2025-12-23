@@ -119,8 +119,8 @@
 
 @media (max-width: 480px) {
   .mmvp-pop-card {
-    width: 140px;
-    height: 249px; /* 140 * 16/9 - MLB.com mobile style */
+    width: 120px;
+    height: 213px; /* 120 * 16/9 - MLB.com mobile style */
   }
 }
 
