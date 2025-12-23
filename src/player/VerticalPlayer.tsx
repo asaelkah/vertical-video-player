@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { PlaylistPayload, VideoMoment, AdMoment, Moment } from "../types";
+import { PlaylistPayload, VideoMoment, AdMoment } from "../types";
 import { track } from "../telemetry/track";
 import { markSeen } from "./seen";
-import { updateUserInterest, recordWatch, getEngagementScore } from "../recommendation/engine";
 
 const isMobile = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
@@ -48,24 +47,6 @@ export function VerticalPlayer({
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadingTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
-  const lastWatchedRef = useRef<{ index: number; progress: number } | null>(null);
-
-  // Track engagement when leaving a video
-  const trackEngagement = useCallback((momentIndex: number, watchProgress: number, wasSkipped: boolean) => {
-    const moment = moments[momentIndex];
-    if (!moment || moment.type === "ad") return; // Don't track ads
-    
-    const tags = moment.tags || [];
-    const engagementScore = getEngagementScore(watchProgress, wasSkipped);
-    
-    // Update user interests based on engagement
-    if (tags.length > 0) {
-      updateUserInterest(tags, engagementScore);
-    }
-    
-    // Record that this video was watched
-    recordWatch(moment.content_id);
-  }, [moments]);
 
   const current = moments[currentIndex];
   const mobile = isMobile();
@@ -81,16 +62,11 @@ export function VerticalPlayer({
 
   // Exit with animation
   const exitWithAnimation = useCallback(() => {
-    // Track engagement for current video before closing
-    if (lastWatchedRef.current) {
-      trackEngagement(lastWatchedRef.current.index, lastWatchedRef.current.progress, false);
-    }
-    
     setExiting(true);
     setTimeout(() => {
       onClose?.();
     }, 300); // Match CSS transition duration
-  }, [onClose, trackEngagement]);
+  }, [onClose]);
 
   // Helpers
   const hasVideo = (m: typeof moments[0]) => m.type === "video" || m.type === "ad";
@@ -212,16 +188,10 @@ export function VerticalPlayer({
           const moment = moments[idx];
           
           if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-            // Track engagement for previous video before switching
-            if (lastWatchedRef.current && lastWatchedRef.current.index !== idx) {
-              trackEngagement(lastWatchedRef.current.index, lastWatchedRef.current.progress, false);
-            }
-            
             // This video is now the main one
             setCurrentIndex(idx);
             setPaused(false);
             setProgress(0);
-            lastWatchedRef.current = { index: idx, progress: 0 };
             
             if (video) {
               video.currentTime = 0;
@@ -298,11 +268,6 @@ export function VerticalPlayer({
         setProgress(prog);
         setCurrentTime(video.currentTime);
         setDuration(video.duration);
-        
-        // Update last watched progress for recommendation tracking
-        if (lastWatchedRef.current && lastWatchedRef.current.index === currentIndex) {
-          lastWatchedRef.current.progress = prog;
-        }
       }
     };
     

@@ -16,88 +16,16 @@ const GRADIENTS = [
   "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
 ];
 
-// Video thumbnail - autoplay muted with aggressive play attempts
-function VideoThumb({ src, title, index }: { src: string; title?: string; index: number }) {
-  const [hasError, setHasError] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  
-  const gradient = GRADIENTS[index % GRADIENTS.length];
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    
-    let attempts = 0;
-    const maxAttempts = 10;
-    let interval: ReturnType<typeof setInterval>;
-    
-    const tryPlay = () => {
-      if (isPlaying || attempts >= maxAttempts) {
-        clearInterval(interval);
-        return;
-      }
-      attempts++;
-      
-      video.play()
-        .then(() => {
-          setIsPlaying(true);
-          clearInterval(interval);
-        })
-        .catch(() => {
-          // Keep trying
-        });
-    };
-    
-    // Try immediately
-    tryPlay();
-    
-    // Keep trying every 500ms
-    interval = setInterval(tryPlay, 500);
-    
-    // Also try on various events
-    const handleCanPlay = () => tryPlay();
-    const handleLoadedData = () => tryPlay();
-    
-    video.addEventListener("canplay", handleCanPlay);
-    video.addEventListener("loadeddata", handleLoadedData);
-    
-    return () => {
-      clearInterval(interval);
-      video.removeEventListener("canplay", handleCanPlay);
-      video.removeEventListener("loadeddata", handleLoadedData);
-    };
-  }, [src, isPlaying]);
-
-  if (hasError) {
-    return (
-      <div 
-        style={{
-          width: "100%",
-          height: "100%",
-          background: gradient,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <span style={{ color: "white", fontSize: "14px", textAlign: "center", fontWeight: 600, padding: "16px" }}>
-          {title || "Video"}
-        </span>
-      </div>
-    );
-  }
-
+// Video thumbnail - simple autoplay muted
+function VideoThumb({ src }: { src: string }) {
   return (
     <video
-      ref={videoRef}
       src={`${src}#t=0.1`}
       autoPlay
       muted
       playsInline
       loop
       preload="auto"
-      onError={() => setHasError(true)}
       style={{
         width: "100%",
         height: "100%",
@@ -142,7 +70,7 @@ function CardThumbnail({ moment, index }: { moment: Moment; index: number }) {
         />
       );
     }
-    return <VideoThumb src={videoMoment.src} title={videoMoment.title} index={index} />;
+    return <VideoThumb src={videoMoment.src} />;
   }
   
   return <div style={{ width: "100%", height: "100%", background: GRADIENTS[index % GRADIENTS.length] }} />;
