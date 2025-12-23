@@ -396,7 +396,7 @@
   height: 24px;
 }
 
-/* ========== PLAY OVERLAY - TikTok Style ========== */
+/* ========== PLAY OVERLAY - TikTok Desktop Style ========== */
 .mmvp-play-overlay {
   position: absolute;
   inset: 0;
@@ -405,31 +405,63 @@
   justify-content: center;
   z-index: 50;
   pointer-events: none;
-  animation: fadeIn 0.15s ease-out;
+  animation: tiktokFadeIn 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.8); }
-  to { opacity: 1; transform: scale(1); }
+@keyframes tiktokFadeIn {
+  0% { 
+    opacity: 0; 
+    transform: scale(0.6);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% { 
+    opacity: 1; 
+    transform: scale(1);
+  }
 }
 
 .mmvp-play-icon-large {
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: tiktokPulse 2s ease-in-out infinite;
+}
+
+@keyframes tiktokPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
 .mmvp-play-icon-large svg {
-  width: 88px;
-  height: 88px;
-  fill: rgba(255, 255, 255, 0.4);
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+  width: 80px;
+  height: 80px;
+  fill: rgba(255, 255, 255, 0.75);
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+  transition: transform 0.15s ease;
 }
 
+/* Desktop - slightly smaller and more refined */
 @media (min-width: 768px) {
   .mmvp-play-icon-large svg {
     width: 72px;
     height: 72px;
+    fill: rgba(255, 255, 255, 0.65);
+  }
+  
+  .mmvp-play-overlay:hover .mmvp-play-icon-large svg {
+    transform: scale(1.1);
+    fill: rgba(255, 255, 255, 0.85);
+  }
+}
+
+/* Mobile - larger for touch */
+@media (max-width: 767px) {
+  .mmvp-play-icon-large svg {
+    width: 88px;
+    height: 88px;
   }
 }
 
