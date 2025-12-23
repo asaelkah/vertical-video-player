@@ -197,20 +197,25 @@ export function VerticalPlayer({
     if (!dragging) return;
     const dy = e.touches[0].clientY - startY.current;
     if (Math.abs(dy) > 10) didSwipe.current = true;
-    if ((dy > 0 && !hasPrev) || (dy < 0 && !hasNext)) {
+    // Dampen when at bounds, but still allow closing on last video
+    if (dy > 0 && !hasPrev) {
       setOffset(dy * 0.15);
     } else {
       setOffset(dy);
     }
-  }, [dragging, hasPrev, hasNext]);
+  }, [dragging, hasPrev]);
 
   const handleTouchEnd = useCallback(() => {
     if (!dragging) return;
     setDragging(false);
     const velocity = Math.abs(offset) / (Date.now() - startTime.current);
     const threshold = velocity > 0.5 ? 30 : 80;
-    if (offset < -threshold) goNext();
-    else if (offset > threshold && hasPrev) goPrev();
+    if (offset < -threshold) {
+      // Swiping up - go next or close on last video
+      goNext();
+    } else if (offset > threshold && hasPrev) {
+      goPrev();
+    }
     setOffset(0);
   }, [dragging, offset, hasPrev, goNext, goPrev]);
 
@@ -266,7 +271,6 @@ export function VerticalPlayer({
             muted
             playsInline
             autoPlay
-            loop
           />
         </div>
       )}
@@ -292,7 +296,6 @@ export function VerticalPlayer({
                 src={(moment as VideoMoment).src}
                 playsInline
                 preload="auto"
-                loop
                 onEnded={i === index ? goNext : undefined}
               />
             </div>
