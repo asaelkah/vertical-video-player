@@ -261,13 +261,6 @@ export function VerticalPlayer({
                   onEnded={() => handleVideoEnd(i)}
                 />
 
-                {/* Progress bar */}
-                {isActive && (
-                  <div className="mmvp-progress-bottom">
-                    <div className="mmvp-progress-bar-fill" style={{ width: `${progress * 100}%` }} />
-                  </div>
-                )}
-
                 {/* Play overlay when paused */}
                 {isActive && paused && (
                   <div className="mmvp-play-overlay">
@@ -346,6 +339,11 @@ export function VerticalPlayer({
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
         </button>
       )}
+
+      {/* Progress bar - fixed at bottom of screen */}
+      <div className="mmvp-progress-bottom">
+        <div className="mmvp-progress-bar-fill" style={{ width: `${progress * 100}%` }} />
+      </div>
     </div>
   );
 }

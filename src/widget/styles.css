@@ -302,15 +302,22 @@
   background: transparent;
 }
 
-/* Progress bar - inside video frame - PROMINENT RED */
+/* Progress bar - PROMINENT RED - fixed at bottom of screen */
 .mmvp-progress-bottom {
-  position: absolute;
+  position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   height: 4px;
   background: rgba(255,255,255,0.3);
-  z-index: 100;
+  z-index: 9999;
+}
+
+/* Account for safe area on iOS */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .mmvp-progress-bottom {
+    bottom: env(safe-area-inset-bottom);
+  }
 }
 
 .mmvp-progress-bar-fill {
