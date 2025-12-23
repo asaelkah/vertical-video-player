@@ -4,29 +4,67 @@ import { VerticalPlayer } from "../player/VerticalPlayer";
 import { PlaylistPayload, Moment, VideoMoment } from "../types";
 import { getDemoPayload } from "./demoPayload";
 
-// Video thumbnail using native video element
-function VideoThumb({ src }: { src: string }) {
+// Video thumbnail - works on both mobile and desktop
+function VideoThumb({ src, title }: { src: string; title?: string }) {
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [loaded, setLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   
+  React.useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    
+    const handleLoaded = () => {
+      setLoaded(true);
+      // Pause immediately after loading first frame
+      video.pause();
+    };
+    
+    video.addEventListener("loadeddata", handleLoaded);
+    video.addEventListener("error", () => setHasError(true));
+    
+    // Try to load
+    video.load();
+    
+    return () => {
+      video.removeEventListener("loadeddata", handleLoaded);
+    };
+  }, [src]);
+  
   if (hasError) {
-    return <div style={{ width: "100%", height: "100%", background: "#1a1a2e" }} />;
+    // Fallback gradient with title
+    return (
+      <div style={{
+        width: "100%",
+        height: "100%",
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+      }}>
+        <span style={{ color: "white", fontSize: "14px", textAlign: "center", fontWeight: 600 }}>
+          {title || "Video"}
+        </span>
+      </div>
+    );
   }
 
   return (
     <video
-      src={`${src}#t=0.1`}
+      ref={videoRef}
+      src={src}
       muted
       playsInline
-      autoPlay
-      loop
-      preload="auto"
-      onError={() => setHasError(true)}
+      preload="metadata"
       style={{
         width: "100%",
         height: "100%",
         objectFit: "cover",
         display: "block",
         background: "#1a1a2e",
+        opacity: loaded ? 1 : 0,
+        transition: "opacity 0.2s",
       }}
     />
   );
@@ -64,7 +102,7 @@ function CardThumbnail({ moment }: { moment: Moment }) {
         />
       );
     }
-    return <VideoThumb src={videoMoment.src} />;
+    return <VideoThumb src={videoMoment.src} title={videoMoment.title} />;
   }
   
   return <div style={{ width: "100%", height: "100%", background: "#1a1a2e" }} />;
