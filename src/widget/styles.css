@@ -293,7 +293,7 @@
   height: 24px;
 }
 
-/* ========== PLAY OVERLAY ========== */
+/* ========== PLAY OVERLAY - TikTok Style ========== */
 .mmvp-play-overlay {
   position: absolute;
   inset: 0;
@@ -301,25 +301,30 @@
   align-items: center;
   justify-content: center;
   z-index: 50;
-  cursor: pointer;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.15);
 }
 
-.mmvp-play-btn {
-  width: 72px;
-  height: 72px;
+.mmvp-play-icon-large {
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.9);
-  color: #000;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  color: rgba(255, 255, 255, 0.9);
 }
 
-.mmvp-play-btn svg {
-  width: 32px;
-  height: 32px;
+.mmvp-play-icon-large svg {
+  width: 40px;
+  height: 40px;
   margin-left: 4px;
+}
+
+.mmvp-play-btn {
+  display: none;
 }
 
 /* ========== NAVIGATION ARROWS - NBA STYLE ========== */

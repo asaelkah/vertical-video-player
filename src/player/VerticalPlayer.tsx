@@ -345,6 +345,16 @@ export function VerticalPlayer({
                   />
                 </div>
               )}
+              {/* Play button overlay when paused */}
+              {i === index && paused && (
+                <div className="mmvp-play-overlay">
+                  <div className="mmvp-play-icon-large">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                  </div>
+                </div>
+              )}
               {/* Skip Ad button inside video frame for desktop */}
               {i === index && moment.type === "ad" && (
                 <button 
