@@ -28,16 +28,15 @@ export function VerticalPlayer({
   initialIndex?: number;
   onClose?: () => void;
 }) {
-  // Filter out skipped ads from this session
+  // Filter out skipped ads from this session (keep seen videos to avoid empty list)
   const moments = useMemo(() => {
-    const seen = getSeen();
     const skippedAds = getSkippedAds();
+    // Only filter out skipped ads, keep all other videos
     const filtered = payload.moments.filter((m) => {
-      if (seen.has(m.content_id)) return false;
       if (m.type === "ad" && skippedAds.has(m.content_id)) return false;
       return true;
     });
-    return filtered.length ? filtered : payload.moments.filter(m => m.type !== "ad" || !skippedAds.has(m.content_id));
+    return filtered.length ? filtered : payload.moments;
   }, [payload.moments]);
 
   const total = moments.length;
