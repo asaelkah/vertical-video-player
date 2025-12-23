@@ -64,6 +64,12 @@ export function getDemoPayload(pageUrl: string): PlaylistPayload {
       {
         content_id: "vid-8",
         type: "video",
+        title: "Deni Avdija Crossover & Jam",
+        src: `${BASE}deni-avdija-crossover-jam.mp4`,
+      },
+      {
+        content_id: "vid-9",
+        type: "video",
         title: "Deni Avdija SLAM!",
         src: `${BASE}deni-avdija-slam.mp4`,
       },
