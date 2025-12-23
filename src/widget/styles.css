@@ -383,9 +383,11 @@
 /* ========== SPONSOR BOX - Fluently AI Style ========== */
 .mmvp-sponsor-box {
   position: absolute;
-  bottom: 100px;
+  bottom: 24px;
   left: 16px;
-  right: 16px;
+  right: auto;
+  width: calc(100% - 32px);
+  max-width: 320px;
   background: rgba(255,255,255,0.95);
   border-radius: 16px;
   padding: 16px;
@@ -396,16 +398,14 @@
 
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .mmvp-sponsor-box {
-    bottom: calc(100px + env(safe-area-inset-bottom));
+    bottom: calc(24px + env(safe-area-inset-bottom));
   }
 }
 
 @media (min-width: 768px) {
   .mmvp-sponsor-box {
     left: 40px;
-    right: auto;
-    bottom: 50%;
-    transform: translateY(50%);
+    bottom: 40px;
     width: 320px;
     padding: 20px;
   }
