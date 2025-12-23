@@ -435,37 +435,23 @@
   color: rgba(255,255,255,0.6);
 }
 
-/* Seek preview thumbnail */
+/* Seek preview - time bubble */
 .mmvp-seek-preview {
   position: fixed;
-  bottom: 70px;
+  bottom: 30px;
   transform: translateX(-50%);
   z-index: 99998;
-  background: #000;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
   pointer-events: none;
 }
 
-.mmvp-seek-preview-video {
-  width: 120px;
-  height: 214px; /* 9:16 ratio */
-  object-fit: cover;
-  display: block;
-}
-
 .mmvp-seek-preview-time {
-  position: absolute;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0,0,0,0.7);
+  background: rgba(0,0,0,0.8);
   color: white;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 14px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 /* Desktop hover effect */
@@ -487,12 +473,7 @@
   }
   
   .mmvp-seek-preview {
-    bottom: 60px;
-  }
-  
-  .mmvp-seek-preview-video {
-    width: 100px;
-    height: 178px;
+    bottom: 28px;
   }
 }
 

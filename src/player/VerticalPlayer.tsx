@@ -498,23 +498,12 @@ export function VerticalPlayer({
       </div>
 
       {/* Preview thumbnail when seeking */}
-      {isSeeking && seekPosition && (
+      {isSeeking && seekPosition && current && (
         <div 
           className="mmvp-seek-preview"
-          style={{ left: `${seekPosition.x}px` }}
+          style={{ left: `${Math.max(60, Math.min(seekPosition.x, window.innerWidth - 60))}px` }}
           onClick={(e) => e.stopPropagation()}
         >
-          <video
-            className="mmvp-seek-preview-video"
-            src={getVideoSrc(current)}
-            muted
-            playsInline
-            ref={(el) => {
-              if (el && seekPosition) {
-                el.currentTime = seekPosition.percent * duration;
-              }
-            }}
-          />
           <div className="mmvp-seek-preview-time">{formatTime(seekPosition.percent * duration)}</div>
         </div>
       )}
