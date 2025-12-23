@@ -321,6 +321,15 @@
   height: 4px;
   background: rgba(255,255,255,0.3);
   z-index: 9999;
+  cursor: pointer;
+  /* Larger hit area for easier clicking */
+  padding: 8px 0;
+  margin: -8px 0;
+  background-clip: content-box;
+}
+
+.mmvp-progress-bottom:hover {
+  height: 6px;
 }
 
 /* Account for safe area on iOS */
@@ -335,6 +344,11 @@
   background: #ff0000;
   border-radius: 0;
   transition: width 0.1s linear;
+  pointer-events: none;
+}
+
+.mmvp-progress-bottom:hover .mmvp-progress-bar-fill {
+  box-shadow: 0 0 8px rgba(255, 0, 0, 0.5);
 }
 
 /* ========== PROGRESS BAR - BOTTOM - MODERN GRADIENT ========== */

@@ -306,8 +306,43 @@ export function VerticalPlayer({
         </button>
       )}
 
-      {/* Progress bar - fixed at bottom of screen */}
-      <div className="mmvp-progress-bottom">
+      {/* Progress bar - fixed at bottom of screen, interactive on desktop */}
+      <div 
+        className="mmvp-progress-bottom"
+        onClick={(e) => {
+          e.stopPropagation();
+          const video = videoRefs.current[currentIndex];
+          if (!video || !video.duration) return;
+          const rect = e.currentTarget.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const percent = x / rect.width;
+          video.currentTime = percent * video.duration;
+          setProgress(percent);
+        }}
+        onMouseDown={(e) => {
+          if (mobile) return;
+          e.stopPropagation();
+          const progressBar = e.currentTarget;
+          const video = videoRefs.current[currentIndex];
+          if (!video || !video.duration) return;
+          
+          const handleMouseMove = (moveEvent: MouseEvent) => {
+            const rect = progressBar.getBoundingClientRect();
+            const x = Math.max(0, Math.min(moveEvent.clientX - rect.left, rect.width));
+            const percent = x / rect.width;
+            video.currentTime = percent * video.duration;
+            setProgress(percent);
+          };
+          
+          const handleMouseUp = () => {
+            document.removeEventListener("mousemove", handleMouseMove);
+            document.removeEventListener("mouseup", handleMouseUp);
+          };
+          
+          document.addEventListener("mousemove", handleMouseMove);
+          document.addEventListener("mouseup", handleMouseUp);
+        }}
+      >
         <div className="mmvp-progress-bar-fill" style={{ width: `${progress * 100}%` }} />
       </div>
     </div>
