@@ -6,25 +6,43 @@
 }
 .mmvp * { box-sizing: border-box; }
 
-/* ========== POPULAR SECTION ========== */
+/* ========== SI.COM STYLE - BEST OF SECTION ========== */
 .mmvp-popular {
   width: 100%;
-  padding: 16px 0;
-  background: #f5f5f5;
+  padding: 0;
+  background: #fff;
+  border-top: 1px solid #e5e5e5;
 }
 
 .mmvp-popular-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px 12px;
+  padding: 20px 16px 16px;
+  border-bottom: 3px solid #c41230;
+  margin: 0 16px;
+}
+
+@media (min-width: 768px) {
+  .mmvp-popular-header {
+    margin: 0 24px;
+    padding: 24px 0 16px;
+  }
 }
 
 .mmvp-popular-title {
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: #000;
+  font-size: 18px;
+  font-weight: 800;
+  color: #1a1a1a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+@media (min-width: 768px) {
+  .mmvp-popular-title {
+    font-size: 22px;
+  }
 }
 
 .mmvp-popular-arrows {
@@ -37,34 +55,43 @@
 }
 
 .mmvp-pop-arrow {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  border: 2px solid #041E42;
+  border: 1px solid #ccc;
   background: white;
-  color: #041E42;
+  color: #333;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  transition: all 0.2s;
 }
 
 .mmvp-pop-arrow:hover {
-  background: #041E42;
+  background: #c41230;
+  border-color: #c41230;
   color: white;
 }
 
-.mmvp-pop-arrow svg { width: 20px; height: 20px; }
+.mmvp-pop-arrow svg { width: 18px; height: 18px; }
 
 .mmvp-popular-scroll {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
-  padding: 0 16px 8px;
+  padding: 20px 16px 24px;
   -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 768px) {
+  .mmvp-popular-scroll {
+    padding: 20px 24px 32px;
+    gap: 20px;
+  }
 }
 
 .mmvp-popular-scroll::-webkit-scrollbar { display: none; }
@@ -72,19 +99,33 @@
 .mmvp-pop-card {
   flex: 0 0 auto;
   position: relative;
-  width: 280px;
-  height: 380px;
-  border-radius: 16px;
+  width: 160px;
+  height: 284px;
+  border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
   scroll-snap-align: start;
   background: #1a1a2e;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.mmvp-pop-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+
+@media (min-width: 768px) {
+  .mmvp-pop-card {
+    width: 200px;
+    height: 356px;
+  }
 }
 
 @media (max-width: 480px) {
   .mmvp-pop-card {
-    width: calc(100vw - 64px);
-    height: calc((100vw - 64px) * 1.35);
+    width: 140px;
+    height: 249px;
   }
 }
 
@@ -111,16 +152,27 @@
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 60px 16px 20px;
-  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+  padding: 40px 12px 14px;
+  background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 60%, transparent 100%);
   z-index: 2;
 }
 
 .mmvp-pop-label {
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   color: white;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .mmvp-pop-label {
+    font-size: 14px;
+  }
 }
 
 /* ========== MODAL ========== */
@@ -143,8 +195,11 @@
 
 /* ========== SCROLL CONTAINER - TikTok-style CSS Snap ========== */
 .mmvp-scroll-container {
-  height: 100vh;
-  height: 100dvh; /* Dynamic viewport height for mobile */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   overflow-y: scroll;
   scroll-snap-type: y mandatory;
   scroll-behavior: smooth;
@@ -160,8 +215,8 @@
 /* ========== VIDEO SECTION - Each snap point ========== */
 .mmvp-video-section {
   position: relative;
-  height: 100vh;
-  height: 100dvh;
+  height: 100%;
+  min-height: 100%;
   width: 100%;
   scroll-snap-align: start;
   scroll-snap-stop: always;
@@ -188,22 +243,29 @@
   transform: scale(1.3);
 }
 
-/* Video frame - centered container */
+/* Video frame - full screen on mobile, centered on desktop */
 .mmvp-video-frame {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
   height: 100%;
-  max-width: min(100vw, calc(100vh * 9 / 16));
-  max-height: 100vh;
-  max-height: 100dvh;
   overflow: hidden;
   z-index: 1;
 }
 
 @media (min-width: 768px) {
   .mmvp-video-frame {
+    position: relative;
+    max-width: min(100vw, calc(100vh * 9 / 16));
     max-height: calc(100vh - 40px);
     border-radius: 12px;
+    top: auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
   }
 }
 
@@ -240,30 +302,22 @@
   background: transparent;
 }
 
-/* Progress bar - inside video frame */
+/* Progress bar - inside video frame - PROMINENT RED */
 .mmvp-progress-bottom {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   height: 4px;
-  background: rgba(255,255,255,0.2);
-  z-index: 10;
+  background: rgba(255,255,255,0.3);
+  z-index: 100;
 }
 
 .mmvp-progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #ff4757 0%, #ff6b81 50%, #ff4757 100%);
-  background-size: 200% 100%;
-  animation: shimmer 2s linear infinite;
-  border-radius: 0 2px 2px 0;
+  background: #ff0000;
+  border-radius: 0;
   transition: width 0.1s linear;
-  box-shadow: 0 0 8px rgba(255, 71, 87, 0.6);
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
 }
 
 /* ========== PROGRESS BAR - BOTTOM - MODERN GRADIENT ========== */
