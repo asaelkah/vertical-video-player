@@ -16,10 +16,9 @@ const GRADIENTS = [
   "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
 ];
 
-// Video thumbnail - shows first frame
+// Video thumbnail - autoplay muted (works on mobile with muted)
 function VideoThumb({ src, title, index }: { src: string; title?: string; index: number }) {
   const [hasError, setHasError] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   
   const gradient = GRADIENTS[index % GRADIENTS.length];
@@ -28,31 +27,23 @@ function VideoThumb({ src, title, index }: { src: string; title?: string; index:
     const video = videoRef.current;
     if (!video) return;
     
-    // Try to load the first frame
-    const handleLoadedData = () => {
-      setIsLoaded(true);
+    // Try to play the video (muted autoplay should work on mobile)
+    const playVideo = () => {
+      video.play().catch(() => {
+        // If autoplay fails, that's ok - video will show first frame
+      });
     };
     
-    const handleError = () => {
-      setHasError(true);
-    };
+    // Play when video can play
+    video.addEventListener("canplay", playVideo);
     
-    video.addEventListener("loadeddata", handleLoadedData);
-    video.addEventListener("error", handleError);
-    
-    // Fallback: if not loaded after 3 seconds, show gradient
-    const timeout = setTimeout(() => {
-      if (!isLoaded) {
-        setHasError(true);
-      }
-    }, 3000);
+    // Also try immediately
+    playVideo();
     
     return () => {
-      video.removeEventListener("loadeddata", handleLoadedData);
-      video.removeEventListener("error", handleError);
-      clearTimeout(timeout);
+      video.removeEventListener("canplay", playVideo);
     };
-  }, [src, isLoaded]);
+  }, [src]);
 
   if (hasError) {
     return (
@@ -79,16 +70,16 @@ function VideoThumb({ src, title, index }: { src: string; title?: string; index:
       src={`${src}#t=0.1`}
       muted
       playsInline
-      preload="metadata"
+      loop
+      preload="auto"
+      onError={() => setHasError(true)}
       style={{
         width: "100%",
         height: "100%",
         objectFit: "cover",
         objectPosition: "center top",
         display: "block",
-        background: gradient,
-        opacity: isLoaded ? 1 : 0,
-        transition: "opacity 0.3s",
+        background: "#000",
       }}
     />
   );
