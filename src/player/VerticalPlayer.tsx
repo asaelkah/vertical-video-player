@@ -71,17 +71,31 @@ export function VerticalPlayer({
     }
   }, [initialIndex]);
 
-  // Eagerly preload all ad videos on mount
+  // Eagerly preload all ad videos - run periodically until all ads are loaded
   useEffect(() => {
-    moments.forEach((moment, i) => {
-      if (moment.type === "ad") {
-        const video = videoRefs.current[i];
-        if (video) {
-          video.preload = "auto";
-          video.load();
+    const preloadAds = () => {
+      moments.forEach((moment, i) => {
+        if (moment.type === "ad") {
+          const video = videoRefs.current[i];
+          if (video && video.readyState < 4) {
+            video.preload = "auto";
+            video.load();
+          }
         }
-      }
-    });
+      });
+    };
+    
+    // Initial preload
+    preloadAds();
+    
+    // Retry preloading every 500ms for 5 seconds to ensure ads are loaded
+    const interval = setInterval(preloadAds, 500);
+    const timeout = setTimeout(() => clearInterval(interval), 5000);
+    
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
   }, [moments]);
 
   // Touch swipe detection for closing on last video (mobile)
@@ -159,6 +173,7 @@ export function VerticalPlayer({
         entries.forEach((entry) => {
           const idx = Number(entry.target.getAttribute("data-index"));
           const video = videoRefs.current[idx];
+          const moment = moments[idx];
           
           if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
             // This video is now the main one
@@ -169,11 +184,29 @@ export function VerticalPlayer({
             if (video) {
               video.currentTime = 0;
               video.muted = muted;
-              video.play().catch(() => {
-                // Try muted autoplay
-                video.muted = true;
-                video.play().catch(() => {});
-              });
+              
+              // For ads, ensure video is loaded before playing
+              const playVideo = () => {
+                video.play().catch(() => {
+                  // Try muted autoplay
+                  video.muted = true;
+                  video.play().catch(() => {});
+                });
+              };
+              
+              if (moment?.type === "ad" && video.readyState < 3) {
+                // Ad not ready - load and wait
+                video.load();
+                const handleCanPlay = () => {
+                  playVideo();
+                  video.removeEventListener("canplay", handleCanPlay);
+                };
+                video.addEventListener("canplay", handleCanPlay);
+                // Also try playing after a short delay as fallback
+                setTimeout(playVideo, 300);
+              } else {
+                playVideo();
+              }
             }
           } else {
             // Pause and reset videos that are not visible
