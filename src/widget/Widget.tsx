@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useEffect } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { CentralModal } from "./CentralModal";
 import { VerticalPlayer } from "../player/VerticalPlayer";
 import { PlaylistPayload, Moment, VideoMoment } from "../types";
@@ -16,91 +16,48 @@ const GRADIENTS = [
   "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
 ];
 
-// Video thumbnail with reliable fallback
+// Video thumbnail - autoplay muted
 function VideoThumb({ src, title, index }: { src: string; title?: string; index: number }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [showFallback, setShowFallback] = useState(false);
+  const [hasError, setHasError] = useState(false);
   
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    
-    let timeoutId: number;
-    
-    const handleLoaded = () => {
-      setLoaded(true);
-      video.pause(); // Pause after loading first frame
-    };
-    
-    const handleError = () => {
-      setShowFallback(true);
-    };
-    
-    video.addEventListener("loadeddata", handleLoaded);
-    video.addEventListener("error", handleError);
-    
-    // Fallback timeout - if video doesn't load in 2 seconds, show gradient
-    timeoutId = window.setTimeout(() => {
-      if (!loaded) {
-        setShowFallback(true);
-      }
-    }, 2000);
-    
-    return () => {
-      video.removeEventListener("loadeddata", handleLoaded);
-      video.removeEventListener("error", handleError);
-      clearTimeout(timeoutId);
-    };
-  }, [src, loaded]);
-
   const gradient = GRADIENTS[index % GRADIENTS.length];
 
-  return (
-    <div style={{ width: "100%", height: "100%", position: "relative" }}>
-      {/* Gradient background - always present as fallback */}
+  if (hasError) {
+    return (
       <div 
         style={{
-          position: "absolute",
-          inset: 0,
+          width: "100%",
+          height: "100%",
           background: gradient,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          opacity: (loaded && !showFallback) ? 0 : 1,
-          transition: "opacity 0.3s",
         }}
       >
-        <svg 
-          viewBox="0 0 24 24" 
-          fill="rgba(255,255,255,0.8)" 
-          style={{ width: 40, height: 40 }}
-        >
-          <path d="M8 5v14l11-7z"/>
-        </svg>
+        <span style={{ color: "white", fontSize: "14px", textAlign: "center", fontWeight: 600, padding: "16px" }}>
+          {title || "Video"}
+        </span>
       </div>
-      
-      {/* Video element */}
-      {!showFallback && (
-        <video
-          ref={videoRef}
-          src={`${src}#t=0.1`}
-          muted
-          playsInline
-          preload="metadata"
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            display: "block",
-            opacity: loaded ? 1 : 0,
-            transition: "opacity 0.3s",
-          }}
-        />
-      )}
-    </div>
+    );
+  }
+
+  return (
+    <video
+      src={`${src}#t=0.1`}
+      muted
+      playsInline
+      autoPlay
+      loop
+      preload="auto"
+      onError={() => setHasError(true)}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        display: "block",
+        background: "#1a1a2e",
+      }}
+    />
   );
 }
 

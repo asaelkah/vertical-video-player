@@ -89,12 +89,12 @@
 
 .mmvp-popular-scroll::-webkit-scrollbar { display: none; }
 
-/* MLB-style cards - large vertical format */
+/* MLB-style cards - vertical format */
 .mmvp-pop-card {
   flex: 0 0 auto;
   position: relative;
-  width: 280px;
-  height: 420px;
+  width: 220px;
+  height: 360px;
   border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
@@ -111,17 +111,15 @@
 
 @media (min-width: 768px) {
   .mmvp-pop-card {
-    width: 320px;
-    height: 480px;
+    width: 260px;
+    height: 400px;
   }
 }
 
 @media (max-width: 480px) {
   .mmvp-pop-card {
-    width: calc(100vw - 80px);
-    height: calc((100vw - 80px) * 1.5);
-    max-width: 300px;
-    max-height: 450px;
+    width: 180px;
+    height: 300px;
   }
 }
 
