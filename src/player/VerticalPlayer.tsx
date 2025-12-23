@@ -324,6 +324,15 @@ export function VerticalPlayer({
                 preload="auto"
                 onEnded={i === index ? goNext : undefined}
               />
+              {/* Progress bar inside video frame */}
+              {i === index && (
+                <div className="mmvp-progress-bottom">
+                  <div 
+                    className="mmvp-progress-bar-fill"
+                    style={{ width: `${progress * 100}%` }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         );
@@ -378,14 +387,6 @@ export function VerticalPlayer({
           </button>
         </>
       )}
-
-      {/* Bottom progress bar - modern gradient */}
-      <div className="mmvp-progress-bottom">
-        <div 
-          className="mmvp-progress-bar-fill"
-          style={{ width: `${progress * 100}%` }}
-        />
-      </div>
 
       {/* Top controls - order: mute, share, close */}
       <div 
