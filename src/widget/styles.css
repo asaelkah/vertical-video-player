@@ -1,0 +1,404 @@
+/* Widget base */
+.mmvp { 
+  all: initial; 
+  display: block; 
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.mmvp * { box-sizing: border-box; }
+
+/* ========== POPULAR SECTION ========== */
+.mmvp-popular {
+  width: 100%;
+  padding: 16px 0;
+  background: #f5f5f5;
+}
+
+.mmvp-popular-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px 12px;
+}
+
+.mmvp-popular-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #000;
+}
+
+.mmvp-popular-arrows {
+  display: none;
+  gap: 8px;
+}
+
+@media (min-width: 768px) {
+  .mmvp-popular-arrows { display: flex; }
+}
+
+.mmvp-pop-arrow {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #041E42;
+  background: white;
+  color: #041E42;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.mmvp-pop-arrow:hover {
+  background: #041E42;
+  color: white;
+}
+
+.mmvp-pop-arrow svg { width: 20px; height: 20px; }
+
+.mmvp-popular-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding: 0 16px 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mmvp-popular-scroll::-webkit-scrollbar { display: none; }
+
+.mmvp-pop-card {
+  flex: 0 0 auto;
+  position: relative;
+  width: 280px;
+  height: 380px;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  scroll-snap-align: start;
+  background: #1a1a2e;
+}
+
+@media (max-width: 480px) {
+  .mmvp-pop-card {
+    width: calc(100vw - 64px);
+    height: calc((100vw - 64px) * 1.35);
+  }
+}
+
+.mmvp-pop-thumb { position: absolute; inset: 0; }
+
+.mmvp-pop-icon {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.mmvp-pop-icon svg { width: 18px; height: 18px; }
+
+.mmvp-pop-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 60px 16px 20px;
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+  z-index: 2;
+}
+
+.mmvp-pop-label {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+}
+
+/* ========== MODAL ========== */
+.mmvp-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: #000;
+  touch-action: none;
+}
+
+/* ========== PLAYER - NBA STYLE ========== */
+.mmvp-player {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  outline: none;
+}
+
+/* Background blur */
+.mmvp-bg-blur {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.mmvp-bg-blur video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(60px) brightness(0.4) saturate(1.5);
+  transform: scale(1.3);
+}
+
+/* Slide container */
+.mmvp-slide {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  will-change: transform;
+  background: transparent;
+}
+
+/* Video frame - centered container */
+.mmvp-video-frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  max-width: min(100vw, calc(100vh * 9 / 16));
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .mmvp-video-frame {
+    max-height: calc(100vh - 40px);
+    border-radius: 12px;
+  }
+}
+
+/* Video element */
+.mmvp-video-element {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: transparent;
+  transition: opacity 0.15s;
+}
+
+/* ========== PROGRESS BARS - TOP - NBA STYLE ========== */
+.mmvp-progress-top {
+  position: absolute;
+  top: 10px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  gap: 4px;
+  z-index: 101; /* Above controls */
+}
+
+@supports (padding-top: env(safe-area-inset-top)) {
+  .mmvp-progress-top {
+    top: calc(10px + env(safe-area-inset-top));
+  }
+}
+
+.mmvp-progress-track {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.mmvp-progress-fill {
+  height: 100%;
+  background: white;
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+/* ========== TOP RIGHT CONTROLS - NBA MOBILE STYLE ========== */
+.mmvp-top-right {
+  position: absolute;
+  top: 22px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 100;
+}
+
+@media (min-width: 768px) {
+  .mmvp-top-right {
+    top: 24px;
+    right: 20px;
+    flex-direction: row;
+    gap: 12px;
+  }
+}
+
+@supports (padding-top: env(safe-area-inset-top)) {
+  .mmvp-top-right {
+    top: calc(22px + env(safe-area-inset-top));
+  }
+}
+
+.mmvp-btn-icon {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0.9;
+  transition: opacity 0.2s, transform 0.2s;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+}
+
+.mmvp-btn-icon:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.mmvp-btn-icon:active {
+  transform: scale(0.95);
+}
+
+.mmvp-btn-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* ========== PLAY OVERLAY ========== */
+.mmvp-play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  cursor: pointer;
+}
+
+.mmvp-play-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.9);
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.mmvp-play-btn svg {
+  width: 32px;
+  height: 32px;
+  margin-left: 4px;
+}
+
+/* ========== NAVIGATION ARROWS - NBA STYLE ========== */
+.mmvp-arrow-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.95);
+  color: #1a1a2e;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.mmvp-arrow-nav:hover {
+  transform: translateY(-50%) scale(1.05);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+}
+
+.mmvp-arrow-nav svg {
+  width: 28px;
+  height: 28px;
+}
+
+.mmvp-arrow-left { left: 20px; }
+.mmvp-arrow-right { right: 20px; }
+
+/* ========== BOTTOM BAR ========== */
+.mmvp-bottom-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 40px 20px 24px;
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
+  z-index: 50;
+  text-align: center;
+  pointer-events: none;
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .mmvp-bottom-bar {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+}
+
+.mmvp-title {
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.mmvp-counter {
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+}
+
+/* Legacy/unused */
+.mmvp-progress-bars { display: none; }
+.mmvp-top-controls { display: none; }
+.mmvp-arrow { display: none; }
+.mmvp-bottom-info { display: none; }
+.mmvp-icon-btn { display: none; }
+.mmvp-close-btn { display: none; }
+.mmvp-nav-arrow { display: none; }
+.mmvp-bottom-overlay { display: none; }
+.mmvp-progress-dots { display: none; }
+.mmvp-video-info { display: none; }
+.mmvp-control-buttons { display: none; }
+.mmvp-ctrl-btn { display: none; }
+.mmvp-gradient-top { display: none; }
+.mmvp-ambient-bg { display: none; }
+.mmvp-ambient-media { display: none; }
+.mmvp-video { display: none; }
+.mmvp-poster { display: none; }
+.mmvp-slides-container { display: none; }
+.mmvp-loader { display: none; }
+.mmvp-spinner { display: none; }
+.mmvp-image { width: 100%; height: 100%; object-fit: cover; }
