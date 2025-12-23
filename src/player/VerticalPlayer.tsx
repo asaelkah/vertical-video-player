@@ -15,6 +15,14 @@ const markAdSkipped = (id: string) => {
   skippedAdsInSession.add(id);
 };
 
+// Spring physics constants - tuned for TikTok-like feel
+const SPRING_TENSION = 300;
+const SPRING_FRICTION = 26;
+const VELOCITY_THRESHOLD = 0.3; // pixels per ms for flick detection
+const SWIPE_THRESHOLD_RATIO = 0.15; // 15% of screen height
+const RUBBER_BAND_RESISTANCE = 0.35;
+const MIN_SWIPE_DISTANCE = 10; // Minimum distance to consider it a swipe
+
 export function VerticalPlayer({
   payload,
   initialIndex = 0,
@@ -24,10 +32,9 @@ export function VerticalPlayer({
   initialIndex?: number;
   onClose?: () => void;
 }) {
-  // Filter out skipped ads from this session (keep seen videos to avoid empty list)
+  // Filter out skipped ads from this session
   const moments = useMemo(() => {
     const skippedAds = getSkippedAds();
-    // Only filter out skipped ads, keep all other videos
     const filtered = payload.moments.filter((m) => {
       if (m.type === "ad" && skippedAds.has(m.content_id)) return false;
       return true;
@@ -37,33 +44,102 @@ export function VerticalPlayer({
 
   const total = moments.length;
   const [index, setIndex] = useState(initialIndex);
-  const [muted, setMuted] = useState(false); // Start unmuted
-  const [paused, setPaused] = useState(false); // Pause state
-  const [hasInteracted, setHasInteracted] = useState(true); // Assume user clicked to open player
+  const [muted, setMuted] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(true);
   const [progress, setProgress] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   
-  // Store refs to ALL video elements
+  // Video refs
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
 
-  // Swipe state
+  // Advanced swipe state
   const [offset, setOffset] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const startY = useRef(0);
-  const startTime = useRef(0);
-  const didSwipe = useRef(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const touchState = useRef({
+    isDragging: false,
+    startY: 0,
+    startTime: 0,
+    lastY: 0,
+    lastTime: 0,
+    velocity: 0,
+    velocityHistory: [] as { v: number; t: number }[],
+    didSwipe: false,
+    rafId: 0,
+  });
 
   const current = moments[index];
   const hasPrev = index > 0;
   const hasNext = index < total - 1;
+  const screenH = typeof window !== "undefined" ? window.innerHeight : 800;
 
-  // Helper to check if moment has video
+  // Helper functions
   const hasVideo = (m: typeof moments[0]) => m.type === "video" || m.type === "ad";
   const getVideoSrc = (m: typeof moments[0]) => {
     if (m.type === "video") return (m as VideoMoment).src;
     if (m.type === "ad") return (m as AdMoment).src;
     return "";
   };
+
+  // Calculate weighted average velocity from history
+  const getAverageVelocity = () => {
+    const history = touchState.current.velocityHistory;
+    if (history.length === 0) return 0;
+    
+    // Weight recent velocities more heavily
+    let totalWeight = 0;
+    let weightedSum = 0;
+    const now = Date.now();
+    
+    history.forEach((entry, i) => {
+      const age = now - entry.t;
+      if (age < 100) { // Only consider last 100ms
+        const weight = 1 - (age / 100);
+        weightedSum += entry.v * weight;
+        totalWeight += weight;
+      }
+    });
+    
+    return totalWeight > 0 ? weightedSum / totalWeight : 0;
+  };
+
+  // Spring animation to target position
+  const animateToPosition = useCallback((targetOffset: number, onComplete?: () => void) => {
+    let currentOffset = offset;
+    let velocity = touchState.current.velocity;
+    let lastTime = performance.now();
+    
+    setIsAnimating(true);
+    
+    const animate = (time: number) => {
+      const dt = Math.min((time - lastTime) / 1000, 0.064); // Cap at ~16fps minimum
+      lastTime = time;
+      
+      // Spring physics
+      const displacement = targetOffset - currentOffset;
+      const springForce = SPRING_TENSION * displacement;
+      const dampingForce = -SPRING_FRICTION * velocity;
+      const acceleration = springForce + dampingForce;
+      
+      velocity += acceleration * dt;
+      currentOffset += velocity * dt;
+      
+      setOffset(currentOffset);
+      
+      // Check if animation is complete (settled)
+      const isSettled = Math.abs(velocity) < 0.5 && Math.abs(displacement) < 0.5;
+      
+      if (isSettled) {
+        setOffset(targetOffset);
+        setIsAnimating(false);
+        onComplete?.();
+      } else {
+        touchState.current.rafId = requestAnimationFrame(animate);
+      }
+    };
+    
+    touchState.current.rafId = requestAnimationFrame(animate);
+  }, [offset]);
 
   // Preload ALL videos on mount
   useEffect(() => {
@@ -77,7 +153,7 @@ export function VerticalPlayer({
     });
   }, [moments]);
 
-  // Play current video, pause others - only when INDEX changes
+  // Play current video, pause others
   useEffect(() => {
     moments.forEach((moment, i) => {
       if (!hasVideo(moment)) return;
@@ -85,18 +161,15 @@ export function VerticalPlayer({
       if (!video) return;
 
       if (i === index) {
-        // Current video - play it
         video.currentTime = 0;
         
         const playVideo = async () => {
           try {
             await video.play();
           } catch {
-            // If failed, try muted first
             video.muted = true;
             try {
               await video.play();
-              // Try to unmute after short delay
               setTimeout(() => {
                 if (video && !video.paused) {
                   video.muted = false;
@@ -114,13 +187,12 @@ export function VerticalPlayer({
           video.addEventListener("canplay", playVideo, { once: true });
         }
       } else {
-        // Other videos - pause them
         video.pause();
       }
     });
-  }, [index, moments]); // Removed muted from dependencies!
+  }, [index, moments]);
 
-  // Sync mute state to current video
+  // Sync mute state
   useEffect(() => {
     const video = videoRefs.current[index];
     if (video && hasInteracted) {
@@ -128,7 +200,7 @@ export function VerticalPlayer({
     }
   }, [muted, index, hasInteracted]);
 
-  // Sync pause state to current video
+  // Sync pause state
   useEffect(() => {
     const video = videoRefs.current[index];
     if (!video) return;
@@ -163,10 +235,19 @@ export function VerticalPlayer({
     setProgress(0);
   }, [index, current]);
 
+  // Cleanup animation on unmount
+  useEffect(() => {
+    return () => {
+      if (touchState.current.rafId) {
+        cancelAnimationFrame(touchState.current.rafId);
+      }
+    };
+  }, []);
+
   const goNext = useCallback(() => {
     if (index < total - 1) {
       setIndex(i => i + 1);
-      setPaused(false); // Resume when navigating
+      setPaused(false);
     } else {
       onClose?.();
     }
@@ -175,11 +256,10 @@ export function VerticalPlayer({
   const goPrev = useCallback(() => {
     if (index > 0) {
       setIndex(i => i - 1);
-      setPaused(false); // Resume when navigating
+      setPaused(false);
     }
   }, [index]);
 
-  // Handle user interaction - unmute
   const handleFirstInteraction = useCallback(() => {
     if (!hasInteracted) {
       setHasInteracted(true);
@@ -191,13 +271,139 @@ export function VerticalPlayer({
     }
   }, [hasInteracted, index]);
 
+  // Touch handlers with RAF-based updates
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    handleFirstInteraction();
+    
+    // Cancel any ongoing animation
+    if (touchState.current.rafId) {
+      cancelAnimationFrame(touchState.current.rafId);
+    }
+    setIsAnimating(false);
+    
+    const touch = e.touches[0];
+    const now = Date.now();
+    
+    touchState.current = {
+      isDragging: true,
+      startY: touch.clientY,
+      startTime: now,
+      lastY: touch.clientY,
+      lastTime: now,
+      velocity: 0,
+      velocityHistory: [],
+      didSwipe: false,
+      rafId: 0,
+    };
+    
+    setOffset(0);
+  }, [handleFirstInteraction]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchState.current.isDragging) return;
+    
+    const touch = e.touches[0];
+    const now = Date.now();
+    const dy = touch.clientY - touchState.current.startY;
+    const dt = now - touchState.current.lastTime;
+    
+    // Mark as swipe if moved enough
+    if (Math.abs(dy) > MIN_SWIPE_DISTANCE) {
+      touchState.current.didSwipe = true;
+    }
+    
+    // Calculate instantaneous velocity
+    if (dt > 0) {
+      const instantVelocity = (touch.clientY - touchState.current.lastY) / dt;
+      touchState.current.velocityHistory.push({ v: instantVelocity, t: now });
+      // Keep only last 5 samples
+      if (touchState.current.velocityHistory.length > 5) {
+        touchState.current.velocityHistory.shift();
+      }
+    }
+    
+    touchState.current.lastY = touch.clientY;
+    touchState.current.lastTime = now;
+    
+    // Apply rubber-band resistance at boundaries
+    let newOffset = dy;
+    
+    // At top (can't go previous) - add resistance to pulling down
+    if (!hasPrev && dy > 0) {
+      newOffset = dy * RUBBER_BAND_RESISTANCE;
+    }
+    // At bottom (can't go next) - add resistance to pulling up
+    else if (!hasNext && dy < 0) {
+      newOffset = dy * RUBBER_BAND_RESISTANCE;
+    }
+    
+    // Use RAF for smooth updates
+    cancelAnimationFrame(touchState.current.rafId);
+    touchState.current.rafId = requestAnimationFrame(() => {
+      setOffset(newOffset);
+    });
+  }, [hasPrev, hasNext]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!touchState.current.isDragging) return;
+    
+    touchState.current.isDragging = false;
+    cancelAnimationFrame(touchState.current.rafId);
+    
+    const avgVelocity = getAverageVelocity();
+    touchState.current.velocity = avgVelocity * 1000; // Convert to per second
+    
+    const swipeThreshold = screenH * SWIPE_THRESHOLD_RATIO;
+    const velocityTriggered = Math.abs(avgVelocity) > VELOCITY_THRESHOLD;
+    const distanceTriggered = Math.abs(offset) > swipeThreshold;
+    
+    // Determine action based on velocity and distance
+    if (offset < 0 && (velocityTriggered || distanceTriggered)) {
+      // Swipe up - go next
+      if (hasNext) {
+        animateToPosition(-screenH, () => {
+          setOffset(0);
+          goNext();
+        });
+      } else {
+        // At end - rubber band back and close
+        animateToPosition(0, () => {
+          onClose?.();
+        });
+      }
+    } else if (offset > 0 && (velocityTriggered || distanceTriggered)) {
+      // Swipe down - go previous
+      if (hasPrev) {
+        animateToPosition(screenH, () => {
+          setOffset(0);
+          goPrev();
+        });
+      } else {
+        // At start - rubber band back
+        animateToPosition(0);
+      }
+    } else {
+      // Not enough to trigger - rubber band back
+      animateToPosition(0);
+    }
+  }, [offset, screenH, hasPrev, hasNext, goNext, goPrev, animateToPosition, onClose]);
+
+  const handleTap = useCallback((e: React.MouseEvent) => {
+    handleFirstInteraction();
+    
+    // Only toggle pause if not a swipe
+    if (!touchState.current.didSwipe) {
+      setPaused(p => !p);
+    }
+  }, [handleFirstInteraction]);
+
   // Keyboard
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       handleFirstInteraction();
       if (e.key === "ArrowDown" || e.key === "ArrowRight") goNext();
       if (e.key === "ArrowUp" || e.key === "ArrowLeft") goPrev();
-      if (e.key === " ") { e.preventDefault(); }
+      if (e.key === " ") { e.preventDefault(); setPaused(p => !p); }
       if (e.key === "m") setMuted(m => !m);
       if (e.key === "Escape") onClose?.();
     };
@@ -209,61 +415,15 @@ export function VerticalPlayer({
   const wheelTimeout = useRef<number | null>(null);
   const handleWheel = useCallback((e: React.WheelEvent) => {
     handleFirstInteraction();
-    if (wheelTimeout.current) return;
+    if (wheelTimeout.current || isAnimating) return;
     if (Math.abs(e.deltaY) > 20) {
       if (e.deltaY > 0) goNext();
       else goPrev();
       wheelTimeout.current = window.setTimeout(() => {
         wheelTimeout.current = null;
-      }, 280);
+      }, 400);
     }
-  }, [goNext, goPrev, handleFirstInteraction]);
-
-  // Touch handlers
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    handleFirstInteraction();
-    startY.current = e.touches[0].clientY;
-    startTime.current = Date.now();
-    setDragging(true);
-    setOffset(0);
-    didSwipe.current = false;
-  }, [handleFirstInteraction]);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!dragging) return;
-    const dy = e.touches[0].clientY - startY.current;
-    if (Math.abs(dy) > 10) didSwipe.current = true;
-    // Dampen when at bounds, but still allow closing on last video
-    if (dy > 0 && !hasPrev) {
-      setOffset(dy * 0.15);
-    } else {
-      setOffset(dy);
-    }
-  }, [dragging, hasPrev]);
-
-  const handleTouchEnd = useCallback(() => {
-    if (!dragging) return;
-    setDragging(false);
-    const duration = Date.now() - startTime.current;
-    const velocity = Math.abs(offset) / duration;
-    // Lower thresholds for snappier response
-    const threshold = velocity > 0.3 ? 20 : 50;
-    if (offset < -threshold) {
-      // Swiping up - go next or close on last video
-      goNext();
-    } else if (offset > threshold && hasPrev) {
-      goPrev();
-    }
-    setOffset(0);
-  }, [dragging, offset, hasPrev, goNext, goPrev]);
-
-  const handleTap = useCallback((e: React.MouseEvent) => {
-    handleFirstInteraction();
-    // Toggle pause on tap/click (both mobile and desktop)
-    if (!didSwipe.current) {
-      setPaused(p => !p);
-    }
-  }, [handleFirstInteraction]);
+  }, [goNext, goPrev, handleFirstInteraction, isAnimating]);
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -274,16 +434,16 @@ export function VerticalPlayer({
     }
   };
 
-  const screenH = typeof window !== "undefined" ? window.innerHeight : 800;
   const mobile = isMobile();
 
   const getSlideTransform = (slideIndex: number) => {
     const diff = slideIndex - index;
     const baseY = diff * screenH;
     const y = baseY + offset;
+    
     return {
       transform: `translate3d(0, ${y}px, 0)`,
-      transition: dragging ? "none" : "transform 0.25s cubic-bezier(0.2, 0, 0, 1)",
+      transition: isAnimating ? "none" : (touchState.current.isDragging ? "none" : "transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)"),
     };
   };
 
@@ -309,7 +469,7 @@ export function VerticalPlayer({
         </div>
       )}
 
-      {/* ALL video slides - keep them all mounted */}
+      {/* ALL video slides */}
       {moments.map((moment, i) => {
         if (!hasVideo(moment)) return null;
         const isVisible = Math.abs(i - index) <= 1;
@@ -332,7 +492,7 @@ export function VerticalPlayer({
                 preload="auto"
                 onEnded={i === index ? goNext : undefined}
               />
-              {/* Progress bar inside video frame */}
+              {/* Progress bar - inside video frame at bottom */}
               {i === index && (
                 <div className="mmvp-progress-bottom">
                   <div 
@@ -351,7 +511,7 @@ export function VerticalPlayer({
                   </div>
                 </div>
               )}
-              {/* Skip Ad button inside video frame for desktop */}
+              {/* Skip Ad button */}
               {i === index && moment.type === "ad" && (
                 <button 
                   className="mmvp-skip-ad mmvp-skip-ad-inside"
@@ -377,38 +537,35 @@ export function VerticalPlayer({
 
       {/* Sponsored overlay for ads */}
       {current?.type === "ad" && (
-        <>
-          <div 
-            className="mmvp-sponsor-box"
-            onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()}
-          >
-            <div className="mmvp-sponsor-header">
-              <div className="mmvp-sponsor-logo">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
-                  <path d="M13 5.41V21h-2V5.41L5.41 11 4 9.59 12 1.59l8 8L18.59 11z"/>
-                </svg>
-              </div>
-              <div className="mmvp-sponsor-info">
-                <div className="mmvp-sponsor-name">{(current as AdMoment).sponsor.name}</div>
-                <div className="mmvp-sponsor-label">Sponsored</div>
-              </div>
+        <div 
+          className="mmvp-sponsor-box"
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
+          <div className="mmvp-sponsor-header">
+            <div className="mmvp-sponsor-logo">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path d="M13 5.41V21h-2V5.41L5.41 11 4 9.59 12 1.59l8 8L18.59 11z"/>
+              </svg>
             </div>
-            <a 
-              href={(current as AdMoment).sponsor.ctaUrl} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="mmvp-sponsor-cta"
-            >
-              {(current as AdMoment).sponsor.ctaText}
-            </a>
+            <div className="mmvp-sponsor-info">
+              <div className="mmvp-sponsor-name">{(current as AdMoment).sponsor.name}</div>
+              <div className="mmvp-sponsor-label">Sponsored</div>
+            </div>
           </div>
-          
-        </>
+          <a 
+            href={(current as AdMoment).sponsor.ctaUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="mmvp-sponsor-cta"
+          >
+            {(current as AdMoment).sponsor.ctaText}
+          </a>
+        </div>
       )}
 
-      {/* Top controls - order: mute, share, close */}
+      {/* Top controls */}
       <div 
         className="mmvp-top-right"
         onClick={(e) => e.stopPropagation()}
