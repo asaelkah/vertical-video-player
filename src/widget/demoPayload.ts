@@ -18,7 +18,7 @@ export function getDemoPayload(pageUrl: string): PlaylistPayload {
         content_id: "vid-2",
         type: "video",
         title: "Cam Little 73 Yard Field Goal",
-        src: `${BASE}Cam%20Little%20from%2073_%21%20THATS%20NOT%20NORMAL%20%20%28via%20%40NFL%20%29.mp4`,
+        src: `${BASE}cam-little-73-yard-field-goal.mp4`,
       },
       {
         content_id: "vid-3",
