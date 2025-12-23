@@ -423,11 +423,13 @@ export function VerticalPlayer({
         </button>
       )}
 
-      {/* Bottom info */}
-      <div className="mmvp-bottom-bar">
-        <div className="mmvp-title">{current?.title}</div>
-        <div className="mmvp-counter">{index + 1} / {total}</div>
-      </div>
+      {/* Bottom info - hidden for ads */}
+      {current?.type !== "ad" && (
+        <div className="mmvp-bottom-bar">
+          <div className="mmvp-title">{current?.title}</div>
+          <div className="mmvp-counter">{index + 1} / {total}</div>
+        </div>
+      )}
     </div>
   );
 }

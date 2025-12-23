@@ -391,10 +391,10 @@
 .mmvp-sponsor-box {
   position: absolute;
   bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 16px;
+  transform: none;
   width: auto;
-  max-width: 310px;
+  max-width: 280px;
   background: rgba(255,255,255,0.95);
   border-radius: 12px;
   padding: 12px;
@@ -411,21 +411,21 @@
 
 @media (min-width: 768px) {
   .mmvp-sponsor-box {
-    left: 50%;
-    transform: translate(-50%, 0);
+    left: 20px;
+    transform: none;
     top: auto;
-    bottom: 60px;
-    width: 250px;
-    max-width: 250px;
-    padding: 14px;
-    border-radius: 12px;
+    bottom: 20px;
+    width: 220px;
+    max-width: 220px;
+    padding: 12px;
+    border-radius: 10px;
   }
 }
 
 /* Skip Ad Button */
 .mmvp-skip-ad {
   position: absolute;
-  bottom: 100px;
+  bottom: 24px;
   right: 16px;
   background: rgba(0, 0, 0, 0.7);
   color: white;
@@ -451,15 +451,15 @@
 
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .mmvp-skip-ad {
-    bottom: calc(100px + env(safe-area-inset-bottom));
+    bottom: calc(24px + env(safe-area-inset-bottom));
   }
 }
 
 /* Skip Ad inside video frame (for desktop) */
 .mmvp-skip-ad-inside {
   position: absolute;
-  bottom: 24px;
-  right: 16px;
+  bottom: 20px;
+  right: 20px;
   z-index: 20;
 }
 
