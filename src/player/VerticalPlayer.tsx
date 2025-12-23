@@ -333,6 +333,25 @@ export function VerticalPlayer({
                   />
                 </div>
               )}
+              {/* Skip Ad button inside video frame for desktop */}
+              {i === index && moment.type === "ad" && (
+                <button 
+                  className="mmvp-skip-ad mmvp-skip-ad-inside"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    markAdSkipped(moment.content_id);
+                    goNext();
+                  }}
+                  onTouchEnd={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    markAdSkipped(moment.content_id);
+                    goNext();
+                  }}
+                >
+                  Skip Ad →
+                </button>
+              )}
             </div>
           </div>
         );
@@ -368,23 +387,6 @@ export function VerticalPlayer({
             </a>
           </div>
           
-          {/* Skip Ad button */}
-          <button 
-            className="mmvp-skip-ad"
-            onClick={(e) => {
-              e.stopPropagation();
-              markAdSkipped(current.content_id);
-              goNext();
-            }}
-            onTouchEnd={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              markAdSkipped(current.content_id);
-              goNext();
-            }}
-          >
-            Skip Ad →
-          </button>
         </>
       )}
 

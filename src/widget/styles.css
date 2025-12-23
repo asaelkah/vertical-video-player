@@ -455,12 +455,20 @@
   }
 }
 
+/* Skip Ad inside video frame (for desktop) */
+.mmvp-skip-ad-inside {
+  position: absolute;
+  bottom: 24px;
+  right: 16px;
+  z-index: 20;
+}
+
 @media (min-width: 768px) {
-  .mmvp-skip-ad {
-    bottom: 40px;
-    right: 40px;
-    padding: 12px 20px;
-    font-size: 14px;
+  .mmvp-skip-ad-inside {
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 16px;
+    font-size: 13px;
   }
 }
 
