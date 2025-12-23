@@ -5,6 +5,20 @@ import { getSeen, markSeen } from "./seen";
 
 const isMobile = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
+// Session storage for skipped ads
+const skippedAdsKey = "mmvp_skipped_ads";
+const getSkippedAds = (): Set<string> => {
+  try {
+    const stored = sessionStorage.getItem(skippedAdsKey);
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+  } catch { return new Set(); }
+};
+const markAdSkipped = (id: string) => {
+  const skipped = getSkippedAds();
+  skipped.add(id);
+  sessionStorage.setItem(skippedAdsKey, JSON.stringify([...skipped]));
+};
+
 export function VerticalPlayer({
   payload,
   initialIndex = 0,
@@ -14,10 +28,16 @@ export function VerticalPlayer({
   initialIndex?: number;
   onClose?: () => void;
 }) {
+  // Filter out skipped ads from this session
   const moments = useMemo(() => {
     const seen = getSeen();
-    const filtered = payload.moments.filter((m) => !seen.has(m.content_id));
-    return filtered.length ? filtered : payload.moments;
+    const skippedAds = getSkippedAds();
+    const filtered = payload.moments.filter((m) => {
+      if (seen.has(m.content_id)) return false;
+      if (m.type === "ad" && skippedAds.has(m.content_id)) return false;
+      return true;
+    });
+    return filtered.length ? filtered : payload.moments.filter(m => m.type !== "ad" || !skippedAds.has(m.content_id));
   }, [payload.moments]);
 
   const total = moments.length;
@@ -311,44 +331,60 @@ export function VerticalPlayer({
 
       {/* Sponsored overlay for ads */}
       {current?.type === "ad" && (
-        <div 
-          className="mmvp-sponsor-box"
-          onClick={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
-          onTouchEnd={(e) => e.stopPropagation()}
-        >
-          <div className="mmvp-sponsor-header">
-            <div className="mmvp-sponsor-logo">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
-                <path d="M13 5.41V21h-2V5.41L5.41 11 4 9.59 12 1.59l8 8L18.59 11z"/>
-              </svg>
-            </div>
-            <div className="mmvp-sponsor-info">
-              <div className="mmvp-sponsor-name">{(current as AdMoment).sponsor.name}</div>
-              <div className="mmvp-sponsor-label">Sponsored</div>
-            </div>
-          </div>
-          <a 
-            href={(current as AdMoment).sponsor.ctaUrl} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="mmvp-sponsor-cta"
+        <>
+          <div 
+            className="mmvp-sponsor-box"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
           >
-            {(current as AdMoment).sponsor.ctaText}
-          </a>
-        </div>
+            <div className="mmvp-sponsor-header">
+              <div className="mmvp-sponsor-logo">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                  <path d="M13 5.41V21h-2V5.41L5.41 11 4 9.59 12 1.59l8 8L18.59 11z"/>
+                </svg>
+              </div>
+              <div className="mmvp-sponsor-info">
+                <div className="mmvp-sponsor-name">{(current as AdMoment).sponsor.name}</div>
+                <div className="mmvp-sponsor-label">Sponsored</div>
+              </div>
+            </div>
+            <a 
+              href={(current as AdMoment).sponsor.ctaUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="mmvp-sponsor-cta"
+            >
+              {(current as AdMoment).sponsor.ctaText}
+            </a>
+          </div>
+          
+          {/* Skip Ad button */}
+          <button 
+            className="mmvp-skip-ad"
+            onClick={(e) => {
+              e.stopPropagation();
+              markAdSkipped(current.content_id);
+              goNext();
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              markAdSkipped(current.content_id);
+              goNext();
+            }}
+          >
+            Skip Ad →
+          </button>
+        </>
       )}
 
-      {/* Progress bars */}
-      <div className="mmvp-progress-top">
-        {moments.map((_, i) => (
-          <div key={i} className="mmvp-progress-track">
-            <div
-              className="mmvp-progress-fill"
-              style={{ width: i < index ? "100%" : i === index ? `${progress * 100}%` : "0%" }}
-            />
-          </div>
-        ))}
+      {/* Bottom progress bar - modern gradient */}
+      <div className="mmvp-progress-bottom">
+        <div 
+          className="mmvp-progress-bar-fill"
+          style={{ width: `${progress * 100}%` }}
+        />
       </div>
 
       {/* Top controls - order: mute, share, close */}

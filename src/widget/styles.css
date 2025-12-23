@@ -198,42 +198,48 @@
   transition: opacity 0.15s;
 }
 
-/* ========== PROGRESS BARS - TOP - NBA STYLE ========== */
+/* ========== PROGRESS BAR - BOTTOM - MODERN GRADIENT ========== */
 .mmvp-progress-top {
-  position: absolute;
-  top: 10px;
-  left: 16px;
-  right: 16px;
-  display: flex;
-  gap: 4px;
-  z-index: 101; /* Above controls */
+  display: none; /* Hidden - using bottom bar now */
 }
 
-@supports (padding-top: env(safe-area-inset-top)) {
-  .mmvp-progress-top {
-    top: calc(10px + env(safe-area-inset-top));
-  }
+.mmvp-progress-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(255,255,255,0.2);
+  z-index: 200;
+}
+
+.mmvp-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff4757 0%, #ff6b81 50%, #ff4757 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+  border-radius: 0 2px 2px 0;
+  transition: width 0.1s linear;
+  box-shadow: 0 0 8px rgba(255, 71, 87, 0.6);
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .mmvp-progress-track {
-  flex: 1;
-  height: 3px;
-  background: rgba(255,255,255,0.3);
-  border-radius: 2px;
-  overflow: hidden;
+  display: none;
 }
 
 .mmvp-progress-fill {
-  height: 100%;
-  background: white;
-  border-radius: 2px;
-  transition: width 0.1s linear;
+  display: none;
 }
 
 /* ========== TOP RIGHT CONTROLS - NBA MOBILE STYLE ========== */
 .mmvp-top-right {
   position: absolute;
-  top: 22px;
+  top: 16px;
   right: 12px;
   display: flex;
   flex-direction: column;
@@ -243,7 +249,7 @@
 
 @media (min-width: 768px) {
   .mmvp-top-right {
-    top: 24px;
+    top: 20px;
     right: 20px;
     flex-direction: row;
     gap: 12px;
@@ -252,7 +258,7 @@
 
 @supports (padding-top: env(safe-area-inset-top)) {
   .mmvp-top-right {
-    top: calc(22px + env(safe-area-inset-top));
+    top: calc(16px + env(safe-area-inset-top));
   }
 }
 
@@ -404,13 +410,56 @@
 
 @media (min-width: 768px) {
   .mmvp-sponsor-box {
-    left: 40px;
-    transform: none;
-    bottom: 40px;
+    left: 80px;
+    transform: translateY(-50%);
+    top: 50%;
+    bottom: auto;
     width: 320px;
     max-width: 320px;
     padding: 20px;
     border-radius: 16px;
+  }
+}
+
+/* Skip Ad Button */
+.mmvp-skip-ad {
+  position: absolute;
+  bottom: 100px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  z-index: 201;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s, transform 0.2s;
+}
+
+.mmvp-skip-ad:hover {
+  background: rgba(0, 0, 0, 0.85);
+  transform: scale(1.02);
+}
+
+.mmvp-skip-ad:active {
+  transform: scale(0.98);
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .mmvp-skip-ad {
+    bottom: calc(100px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 768px) {
+  .mmvp-skip-ad {
+    bottom: 40px;
+    right: 40px;
+    padding: 12px 20px;
+    font-size: 14px;
   }
 }
 
