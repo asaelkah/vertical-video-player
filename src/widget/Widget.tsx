@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from "react";
+import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { CentralModal } from "./CentralModal";
 import { VerticalPlayer } from "../player/VerticalPlayer";
 import { PlaylistPayload, Moment, VideoMoment } from "../types";
@@ -116,13 +116,53 @@ export function Widget({ hostEl }: { hostEl: HTMLElement }) {
     [payload.moments]
   );
 
-  const scrollLeft = () => {
-    scrollRef.current?.scrollBy({ left: -320, behavior: "smooth" });
-  };
+  const scrollLeft = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    
+    // If at the start, jump to end
+    if (el.scrollLeft <= 10) {
+      el.scrollTo({ left: el.scrollWidth - el.clientWidth, behavior: "smooth" });
+    } else {
+      el.scrollBy({ left: -320, behavior: "smooth" });
+    }
+  }, []);
 
-  const scrollRight = () => {
-    scrollRef.current?.scrollBy({ left: 320, behavior: "smooth" });
-  };
+  const scrollRight = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    
+    // If at the end, jump to start
+    if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 10) {
+      el.scrollTo({ left: 0, behavior: "smooth" });
+    } else {
+      el.scrollBy({ left: 320, behavior: "smooth" });
+    }
+  }, []);
+
+  // Auto-loop on scroll end (for touch/drag scrolling)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    let scrollTimeout: ReturnType<typeof setTimeout>;
+    
+    const handleScroll = () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        // If scrolled to the very end, loop to start
+        if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 5) {
+          el.scrollTo({ left: 0, behavior: "smooth" });
+        }
+      }, 150);
+    };
+
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, []);
 
   const openPlayer = (originalIndex: number) => {
     setSelectedIndex(originalIndex);
