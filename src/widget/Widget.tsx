@@ -195,13 +195,6 @@ export function Widget({ hostEl }: { hostEl: HTMLElement }) {
               <CardThumbnail moment={moment} index={idx} />
             </div>
             
-            {/* Play icon - MLB style */}
-            <div className="mmvp-pop-icon">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            </div>
-            
             {/* Title overlay */}
             <div className="mmvp-pop-overlay">
               <p className="mmvp-pop-label">{moment.title}</p>
