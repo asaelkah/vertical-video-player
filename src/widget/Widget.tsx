@@ -1,38 +1,110 @@
-import React, { useMemo, useState, useRef } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import { CentralModal } from "./CentralModal";
 import { VerticalPlayer } from "../player/VerticalPlayer";
 import { PlaylistPayload, Moment, VideoMoment } from "../types";
 import { getDemoPayload } from "./demoPayload";
 
-// Video thumbnail using native video element
-function VideoThumb({ src }: { src: string }) {
-  const [hasError, setHasError] = useState(false);
+// Gradient colors for fallback thumbnails
+const GRADIENTS = [
+  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+  "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+  "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+  "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+  "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+  "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)",
+  "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)",
+  "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
+];
+
+// Video thumbnail with reliable fallback
+function VideoThumb({ src, title, index }: { src: string; title?: string; index: number }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
   
-  if (hasError) {
-    return <div style={{ width: "100%", height: "100%", background: "#1a1a2e" }} />;
-  }
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    
+    let timeoutId: number;
+    
+    const handleLoaded = () => {
+      setLoaded(true);
+      video.pause(); // Pause after loading first frame
+    };
+    
+    const handleError = () => {
+      setShowFallback(true);
+    };
+    
+    video.addEventListener("loadeddata", handleLoaded);
+    video.addEventListener("error", handleError);
+    
+    // Fallback timeout - if video doesn't load in 2 seconds, show gradient
+    timeoutId = window.setTimeout(() => {
+      if (!loaded) {
+        setShowFallback(true);
+      }
+    }, 2000);
+    
+    return () => {
+      video.removeEventListener("loadeddata", handleLoaded);
+      video.removeEventListener("error", handleError);
+      clearTimeout(timeoutId);
+    };
+  }, [src, loaded]);
+
+  const gradient = GRADIENTS[index % GRADIENTS.length];
 
   return (
-    <video
-      src={`${src}#t=0.1`}
-      muted
-      playsInline
-      autoPlay
-      loop
-      preload="auto"
-      onError={() => setHasError(true)}
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-        display: "block",
-        background: "#1a1a2e",
-      }}
-    />
+    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+      {/* Gradient background - always present as fallback */}
+      <div 
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: gradient,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: (loaded && !showFallback) ? 0 : 1,
+          transition: "opacity 0.3s",
+        }}
+      >
+        <svg 
+          viewBox="0 0 24 24" 
+          fill="rgba(255,255,255,0.8)" 
+          style={{ width: 40, height: 40 }}
+        >
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+      </div>
+      
+      {/* Video element */}
+      {!showFallback && (
+        <video
+          ref={videoRef}
+          src={`${src}#t=0.1`}
+          muted
+          playsInline
+          preload="metadata"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+            opacity: loaded ? 1 : 0,
+            transition: "opacity 0.3s",
+          }}
+        />
+      )}
+    </div>
   );
 }
 
-function CardThumbnail({ moment }: { moment: Moment }) {
+function CardThumbnail({ moment, index }: { moment: Moment; index: number }) {
   if (moment.type === "youtube") {
     return (
       <img 
@@ -64,10 +136,10 @@ function CardThumbnail({ moment }: { moment: Moment }) {
         />
       );
     }
-    return <VideoThumb src={videoMoment.src} />;
+    return <VideoThumb src={videoMoment.src} title={videoMoment.title} index={index} />;
   }
   
-  return <div style={{ width: "100%", height: "100%", background: "#1a1a2e" }} />;
+  return <div style={{ width: "100%", height: "100%", background: GRADIENTS[index % GRADIENTS.length] }} />;
 }
 
 export function Widget({ hostEl }: { hostEl: HTMLElement }) {
@@ -116,11 +188,11 @@ export function Widget({ hostEl }: { hostEl: HTMLElement }) {
 
       {/* Cards - ads are hidden from carousel */}
       <div className="mmvp-popular-scroll" ref={scrollRef}>
-        {visibleMoments.map(({ moment, originalIndex }) => (
+        {visibleMoments.map(({ moment, originalIndex }, idx) => (
           <div key={moment.content_id} className="mmvp-pop-card" onClick={() => openPlayer(originalIndex)}>
             {/* Thumbnail */}
             <div className="mmvp-pop-thumb">
-              <CardThumbnail moment={moment} />
+              <CardThumbnail moment={moment} index={idx} />
             </div>
             
             {/* Title overlay */}
