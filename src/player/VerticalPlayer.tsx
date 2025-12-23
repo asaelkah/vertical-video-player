@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { PlaylistPayload, VideoMoment } from "../types";
+import { PlaylistPayload, VideoMoment, AdMoment } from "../types";
 import { track } from "../telemetry/track";
 import { getSeen, markSeen } from "./seen";
 
@@ -41,10 +41,18 @@ export function VerticalPlayer({
   const hasPrev = index > 0;
   const hasNext = index < total - 1;
 
+  // Helper to check if moment has video
+  const hasVideo = (m: typeof moments[0]) => m.type === "video" || m.type === "ad";
+  const getVideoSrc = (m: typeof moments[0]) => {
+    if (m.type === "video") return (m as VideoMoment).src;
+    if (m.type === "ad") return (m as AdMoment).src;
+    return "";
+  };
+
   // Preload ALL videos on mount
   useEffect(() => {
     moments.forEach((moment, i) => {
-      if (moment.type === "video") {
+      if (hasVideo(moment)) {
         const video = videoRefs.current[i];
         if (video) {
           video.load();
@@ -56,7 +64,7 @@ export function VerticalPlayer({
   // Play current video, pause others
   useEffect(() => {
     moments.forEach((moment, i) => {
-      if (moment.type !== "video") return;
+      if (!hasVideo(moment)) return;
       const video = videoRefs.current[i];
       if (!video) return;
 
@@ -264,10 +272,10 @@ export function VerticalPlayer({
       onWheel={handleWheel}
     >
       {/* Background blur */}
-      {current?.type === "video" && (
+      {hasVideo(current) && (
         <div className="mmvp-bg-blur">
           <video
-            src={(current as VideoMoment).src}
+            src={getVideoSrc(current)}
             muted
             playsInline
             autoPlay
@@ -277,7 +285,7 @@ export function VerticalPlayer({
 
       {/* ALL video slides - keep them all mounted */}
       {moments.map((moment, i) => {
-        if (moment.type !== "video") return null;
+        if (!hasVideo(moment)) return null;
         const isVisible = Math.abs(i - index) <= 1;
         
         return (
@@ -293,7 +301,7 @@ export function VerticalPlayer({
               <video
                 ref={(el) => { videoRefs.current[i] = el; }}
                 className="mmvp-video-element"
-                src={(moment as VideoMoment).src}
+                src={getVideoSrc(moment)}
                 playsInline
                 preload="auto"
                 onEnded={i === index ? goNext : undefined}
@@ -302,6 +310,36 @@ export function VerticalPlayer({
           </div>
         );
       })}
+
+      {/* Sponsored overlay for ads */}
+      {current?.type === "ad" && (
+        <div 
+          className="mmvp-sponsor-box"
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
+          <div className="mmvp-sponsor-header">
+            <div className="mmvp-sponsor-logo">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path d="M13 5.41V21h-2V5.41L5.41 11 4 9.59 12 1.59l8 8L18.59 11z"/>
+              </svg>
+            </div>
+            <div className="mmvp-sponsor-info">
+              <div className="mmvp-sponsor-name">{(current as AdMoment).sponsor.name}</div>
+              <div className="mmvp-sponsor-label">Sponsored</div>
+            </div>
+          </div>
+          <a 
+            href={(current as AdMoment).sponsor.ctaUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="mmvp-sponsor-cta"
+          >
+            {(current as AdMoment).sponsor.ctaText}
+          </a>
+        </div>
+      )}
 
       {/* Progress bars */}
       <div className="mmvp-progress-top">

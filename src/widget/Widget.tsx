@@ -78,6 +78,14 @@ export function Widget({ hostEl }: { hostEl: HTMLElement }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Filter out ads for carousel display (ads don't show thumbnails)
+  const visibleMoments = useMemo(() => 
+    payload.moments
+      .map((m, i) => ({ moment: m, originalIndex: i }))
+      .filter(({ moment }) => moment.type !== "ad"),
+    [payload.moments]
+  );
+
   const scrollLeft = () => {
     scrollRef.current?.scrollBy({ left: -320, behavior: "smooth" });
   };
@@ -86,8 +94,8 @@ export function Widget({ hostEl }: { hostEl: HTMLElement }) {
     scrollRef.current?.scrollBy({ left: 320, behavior: "smooth" });
   };
 
-  const openPlayer = (index: number) => {
-    setSelectedIndex(index);
+  const openPlayer = (originalIndex: number) => {
+    setSelectedIndex(originalIndex);
     setOpen(true);
   };
 
@@ -106,10 +114,10 @@ export function Widget({ hostEl }: { hostEl: HTMLElement }) {
         </div>
       </div>
 
-      {/* Cards */}
+      {/* Cards - ads are hidden from carousel */}
       <div className="mmvp-popular-scroll" ref={scrollRef}>
-        {payload.moments.map((moment, i) => (
-          <div key={moment.content_id} className="mmvp-pop-card" onClick={() => openPlayer(i)}>
+        {visibleMoments.map(({ moment, originalIndex }) => (
+          <div key={moment.content_id} className="mmvp-pop-card" onClick={() => openPlayer(originalIndex)}>
             {/* Thumbnail */}
             <div className="mmvp-pop-thumb">
               <CardThumbnail moment={moment} />

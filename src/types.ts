@@ -31,11 +31,16 @@ export interface ImageMoment extends MomentBase {
 
 export interface AdMoment extends MomentBase {
   type: "ad";
-  vastTagUrl?: string; // hook point
+  src: string; // video source
+  poster?: string;
+  sponsor: {
+    name: string;
+    logo?: string;
+    ctaText: string;
+    ctaUrl: string;
+  };
+  vastTagUrl?: string;
   adId?: string;
-  min_ms?: number;
-  max_ms?: number;
-  simid?: { creativeUrl: string };
 }
 
 export interface YouTubeMoment extends MomentBase {

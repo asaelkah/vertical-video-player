@@ -21,6 +21,17 @@ export function getDemoPayload(pageUrl: string): PlaylistPayload {
         src: `${BASE}cam-little-73-yard-field-goal.mp4`,
       },
       {
+        content_id: "ad-1",
+        type: "ad",
+        title: "Fluently AI",
+        src: `${BASE}fluently-ad.mp4`,
+        sponsor: {
+          name: "Fluently AI",
+          ctaText: "Start now",
+          ctaUrl: "https://app.getfluently.app/onboarding/intro?utm_content=FastestWay_MainFunnel_NEW_Video_AK016_9x16_EN_2.mp4&utm_source=google&utm_medium=cpc&utm_campaign=059_Google_DemandGen_WW_Broad_TopCreo_ALL_0812",
+        },
+      },
+      {
         content_id: "vid-3",
         type: "video",
         title: "Jaguars Prove They Are to Be Feared",
