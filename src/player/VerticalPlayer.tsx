@@ -61,7 +61,7 @@ export function VerticalPlayer({
     });
   }, [moments]);
 
-  // Play current video, pause others
+  // Play current video, pause others - only when INDEX changes
   useEffect(() => {
     moments.forEach((moment, i) => {
       if (!hasVideo(moment)) return;
@@ -69,29 +69,25 @@ export function VerticalPlayer({
       if (!video) return;
 
       if (i === index) {
-        // Current video - play it unmuted
+        // Current video - play it
         video.currentTime = 0;
-        video.muted = muted;
         
         const playVideo = async () => {
           try {
-            // Try playing with current muted state
             await video.play();
           } catch {
-            // If unmuted failed, try muted then unmute after
-            if (!muted) {
-              video.muted = true;
-              try {
-                await video.play();
-                // Successfully playing muted, try to unmute after short delay
-                setTimeout(() => {
-                  if (video && !video.paused) {
-                    video.muted = false;
-                  }
-                }, 100);
-              } catch (e) {
-                console.error("Video play failed:", e);
-              }
+            // If failed, try muted first
+            video.muted = true;
+            try {
+              await video.play();
+              // Try to unmute after short delay
+              setTimeout(() => {
+                if (video && !video.paused) {
+                  video.muted = false;
+                }
+              }, 100);
+            } catch (e) {
+              console.error("Video play failed:", e);
             }
           }
         };
@@ -106,7 +102,7 @@ export function VerticalPlayer({
         video.pause();
       }
     });
-  }, [index, moments, muted]);
+  }, [index, moments]); // Removed muted from dependencies!
 
   // Sync mute state to current video
   useEffect(() => {
@@ -182,12 +178,12 @@ export function VerticalPlayer({
   const handleWheel = useCallback((e: React.WheelEvent) => {
     handleFirstInteraction();
     if (wheelTimeout.current) return;
-    if (Math.abs(e.deltaY) > 30) {
+    if (Math.abs(e.deltaY) > 20) {
       if (e.deltaY > 0) goNext();
       else goPrev();
       wheelTimeout.current = window.setTimeout(() => {
         wheelTimeout.current = null;
-      }, 400);
+      }, 280);
     }
   }, [goNext, goPrev, handleFirstInteraction]);
 
@@ -216,8 +212,10 @@ export function VerticalPlayer({
   const handleTouchEnd = useCallback(() => {
     if (!dragging) return;
     setDragging(false);
-    const velocity = Math.abs(offset) / (Date.now() - startTime.current);
-    const threshold = velocity > 0.5 ? 30 : 80;
+    const duration = Date.now() - startTime.current;
+    const velocity = Math.abs(offset) / duration;
+    // Lower thresholds for snappier response
+    const threshold = velocity > 0.3 ? 20 : 50;
     if (offset < -threshold) {
       // Swiping up - go next or close on last video
       goNext();
@@ -256,8 +254,8 @@ export function VerticalPlayer({
     const baseY = diff * screenH;
     const y = baseY + offset;
     return {
-      transform: `translateY(${y}px)`,
-      transition: dragging ? "none" : "transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+      transform: `translate3d(0, ${y}px, 0)`,
+      transition: dragging ? "none" : "transform 0.25s cubic-bezier(0.2, 0, 0, 1)",
     };
   };
 
