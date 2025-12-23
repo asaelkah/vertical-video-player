@@ -55,6 +55,18 @@ export function getDemoPayload(pageUrl: string): PlaylistPayload {
         title: "NFL Bet of the Weekend",
         src: `${BASE}One%20NFL%20bet%20you%20HAVE%20to%20make%20this%20weekend.mp4`,
       },
+      {
+        content_id: "vid-7",
+        type: "video",
+        title: "Deni Avdija Takeover",
+        src: `${BASE}deni-avdija-takeover.mp4`,
+      },
+      {
+        content_id: "vid-8",
+        type: "video",
+        title: "Deni Avdija SLAM!",
+        src: `${BASE}deni-avdija-slam.mp4`,
+      },
     ],
   };
 }
