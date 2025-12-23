@@ -16,9 +16,10 @@ const GRADIENTS = [
   "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
 ];
 
-// Video thumbnail - autoplay muted (works on mobile with muted)
+// Video thumbnail - autoplay muted with aggressive play attempts
 function VideoThumb({ src, title, index }: { src: string; title?: string; index: number }) {
   const [hasError, setHasError] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   
   const gradient = GRADIENTS[index % GRADIENTS.length];
@@ -27,23 +28,46 @@ function VideoThumb({ src, title, index }: { src: string; title?: string; index:
     const video = videoRef.current;
     if (!video) return;
     
-    // Try to play the video (muted autoplay should work on mobile)
-    const playVideo = () => {
-      video.play().catch(() => {
-        // If autoplay fails, that's ok - video will show first frame
-      });
+    let attempts = 0;
+    const maxAttempts = 10;
+    let interval: ReturnType<typeof setInterval>;
+    
+    const tryPlay = () => {
+      if (isPlaying || attempts >= maxAttempts) {
+        clearInterval(interval);
+        return;
+      }
+      attempts++;
+      
+      video.play()
+        .then(() => {
+          setIsPlaying(true);
+          clearInterval(interval);
+        })
+        .catch(() => {
+          // Keep trying
+        });
     };
     
-    // Play when video can play
-    video.addEventListener("canplay", playVideo);
+    // Try immediately
+    tryPlay();
     
-    // Also try immediately
-    playVideo();
+    // Keep trying every 500ms
+    interval = setInterval(tryPlay, 500);
+    
+    // Also try on various events
+    const handleCanPlay = () => tryPlay();
+    const handleLoadedData = () => tryPlay();
+    
+    video.addEventListener("canplay", handleCanPlay);
+    video.addEventListener("loadeddata", handleLoadedData);
     
     return () => {
-      video.removeEventListener("canplay", playVideo);
+      clearInterval(interval);
+      video.removeEventListener("canplay", handleCanPlay);
+      video.removeEventListener("loadeddata", handleLoadedData);
     };
-  }, [src]);
+  }, [src, isPlaying]);
 
   if (hasError) {
     return (
@@ -68,6 +92,7 @@ function VideoThumb({ src, title, index }: { src: string; title?: string; index:
     <video
       ref={videoRef}
       src={`${src}#t=0.1`}
+      autoPlay
       muted
       playsInline
       loop

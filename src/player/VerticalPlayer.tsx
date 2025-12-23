@@ -436,7 +436,7 @@ export function VerticalPlayer({
                   src={getVideoSrc(moment)}
                   playsInline
                   muted={muted}
-                  preload={isNear || moment.type === "ad" ? "auto" : "metadata"}
+                  preload="auto"
                   onEnded={() => handleVideoEnd(i)}
                   onCanPlay={() => {
                     // Clear loading state when video can play
