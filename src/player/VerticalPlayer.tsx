@@ -59,40 +59,6 @@ export function VerticalPlayer({
     }
   }, [initialIndex]);
 
-  // Detect scroll past last video to close player
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let closeTimeout: number | null = null;
-
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
-      const isOnLastVideo = currentIndex === total - 1;
-
-      if (isAtBottom && isOnLastVideo) {
-        // User has scrolled to the very bottom on last video
-        if (!closeTimeout) {
-          closeTimeout = window.setTimeout(() => {
-            // Check again if still at bottom
-            const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = container;
-            if (st + ch >= sh - 10) {
-              onClose?.();
-            }
-            closeTimeout = null;
-          }, 300);
-        }
-      }
-    };
-
-    container.addEventListener("scroll", handleScroll, { passive: true });
-    return () => {
-      container.removeEventListener("scroll", handleScroll);
-      if (closeTimeout) clearTimeout(closeTimeout);
-    };
-  }, [currentIndex, total, onClose]);
-
   // Intersection Observer for video play/pause
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
