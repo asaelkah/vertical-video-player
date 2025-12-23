@@ -90,11 +90,12 @@
 .mmvp-popular-scroll::-webkit-scrollbar { display: none; }
 
 /* MLB-style cards - vertical format */
+/* Cards with 9:16 aspect ratio to match video */
 .mmvp-pop-card {
   flex: 0 0 auto;
   position: relative;
-  width: 220px;
-  height: 360px;
+  width: 200px;
+  aspect-ratio: 9 / 16;
   border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
@@ -111,15 +112,13 @@
 
 @media (min-width: 768px) {
   .mmvp-pop-card {
-    width: 260px;
-    height: 400px;
+    width: 220px;
   }
 }
 
 @media (max-width: 480px) {
   .mmvp-pop-card {
-    width: 180px;
-    height: 300px;
+    width: 160px;
   }
 }
 
