@@ -6,42 +6,36 @@
 }
 .mmvp * { box-sizing: border-box; }
 
-/* ========== SI.COM STYLE - BEST OF SECTION ========== */
+/* ========== MLB.COM STYLE - POPULAR SECTION ========== */
 .mmvp-popular {
   width: 100%;
   padding: 0;
   background: #fff;
-  border-top: 1px solid #e5e5e5;
 }
 
 .mmvp-popular-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 16px 16px;
-  border-bottom: 3px solid #c41230;
-  margin: 0 16px;
+  padding: 24px 16px 16px;
 }
 
 @media (min-width: 768px) {
   .mmvp-popular-header {
-    margin: 0 24px;
-    padding: 24px 0 16px;
+    padding: 32px 24px 20px;
   }
 }
 
 .mmvp-popular-title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 800;
-  color: #1a1a1a;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #041E42;
 }
 
 @media (min-width: 768px) {
   .mmvp-popular-title {
-    font-size: 22px;
+    font-size: 28px;
   }
 }
 
@@ -55,12 +49,12 @@
 }
 
 .mmvp-pop-arrow {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  border: 1px solid #ccc;
+  border: 2px solid #041E42;
   background: white;
-  color: #333;
+  color: #041E42;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -70,12 +64,11 @@
 }
 
 .mmvp-pop-arrow:hover {
-  background: #c41230;
-  border-color: #c41230;
+  background: #041E42;
   color: white;
 }
 
-.mmvp-pop-arrow svg { width: 18px; height: 18px; }
+.mmvp-pop-arrow svg { width: 20px; height: 20px; }
 
 .mmvp-popular-scroll {
   display: flex;
@@ -83,86 +76,97 @@
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
-  padding: 20px 16px 24px;
+  padding: 0 16px 24px;
   -webkit-overflow-scrolling: touch;
 }
 
 @media (min-width: 768px) {
   .mmvp-popular-scroll {
-    padding: 20px 24px 32px;
+    padding: 0 24px 32px;
     gap: 20px;
   }
 }
 
 .mmvp-popular-scroll::-webkit-scrollbar { display: none; }
 
+/* MLB-style cards - large vertical format */
 .mmvp-pop-card {
   flex: 0 0 auto;
   position: relative;
-  width: 160px;
-  height: 284px;
-  border-radius: 8px;
+  width: 280px;
+  height: 420px;
+  border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
   scroll-snap-align: start;
   background: #1a1a2e;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .mmvp-pop-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
 }
 
 @media (min-width: 768px) {
   .mmvp-pop-card {
-    width: 200px;
-    height: 356px;
+    width: 320px;
+    height: 480px;
   }
 }
 
 @media (max-width: 480px) {
   .mmvp-pop-card {
-    width: 140px;
-    height: 249px;
+    width: calc(100vw - 80px);
+    height: calc((100vw - 80px) * 1.5);
+    max-width: 300px;
+    max-height: 450px;
   }
 }
 
 .mmvp-pop-thumb { position: absolute; inset: 0; }
 
+/* MLB-style play icon - white rounded rectangle */
 .mmvp-pop-icon {
   position: absolute;
-  top: 12px;
-  left: 12px;
-  width: 32px;
-  height: 32px;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 6px;
+  top: 16px;
+  left: 16px;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2;
+  z-index: 3;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
-.mmvp-pop-icon svg { width: 18px; height: 18px; }
+.mmvp-pop-icon svg { 
+  width: 20px; 
+  height: 20px; 
+  color: #041E42;
+  margin-left: 2px;
+}
 
 .mmvp-pop-overlay {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 40px 12px 14px;
-  background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 60%, transparent 100%);
+  padding: 80px 20px 24px;
+  background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 50%, transparent 100%);
   z-index: 2;
 }
 
+/* MLB-style title - large bold white text */
 .mmvp-pop-label {
   margin: 0;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 700;
   color: white;
-  line-height: 1.3;
+  line-height: 1.2;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -171,7 +175,13 @@
 
 @media (min-width: 768px) {
   .mmvp-pop-label {
-    font-size: 14px;
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mmvp-pop-label {
+    font-size: 20px;
   }
 }
 

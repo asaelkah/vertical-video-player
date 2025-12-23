@@ -173,9 +173,9 @@ export function Widget({ hostEl }: { hostEl: HTMLElement }) {
 
   return (
     <div className="mmvp-popular">
-      {/* Header - SI.com style */}
+      {/* Header - MLB.com style */}
       <div className="mmvp-popular-header">
-        <h2 className="mmvp-popular-title">Best of SI</h2>
+        <h2 className="mmvp-popular-title">Popular</h2>
         <div className="mmvp-popular-arrows">
           <button className="mmvp-pop-arrow" onClick={scrollLeft}>
             <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="currentColor"/></svg>
@@ -193,6 +193,13 @@ export function Widget({ hostEl }: { hostEl: HTMLElement }) {
             {/* Thumbnail */}
             <div className="mmvp-pop-thumb">
               <CardThumbnail moment={moment} index={idx} />
+            </div>
+            
+            {/* Play icon - MLB style */}
+            <div className="mmvp-pop-icon">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
             </div>
             
             {/* Title overlay */}
