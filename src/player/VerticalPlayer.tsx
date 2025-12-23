@@ -59,6 +59,35 @@ export function VerticalPlayer({
     }
   }, [initialIndex]);
 
+  // Touch swipe detection for closing on last video
+  const touchStartY = useRef(0);
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY.current = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const deltaY = touchStartY.current - e.changedTouches[0].clientY;
+      const isOnLastVideo = currentIndex === total - 1;
+      
+      // Swipe up on last video (delta > 50px) - close player
+      if (isOnLastVideo && deltaY > 50) {
+        onClose?.();
+      }
+    };
+
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchend", handleTouchEnd, { passive: true });
+    
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [currentIndex, total, onClose]);
+
   // Intersection Observer for video play/pause
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
