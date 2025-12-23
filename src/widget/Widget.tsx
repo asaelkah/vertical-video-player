@@ -16,11 +16,43 @@ const GRADIENTS = [
   "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
 ];
 
-// Video thumbnail - autoplay muted
+// Video thumbnail - shows first frame
 function VideoThumb({ src, title, index }: { src: string; title?: string; index: number }) {
   const [hasError, setHasError] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   
   const gradient = GRADIENTS[index % GRADIENTS.length];
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    
+    // Try to load the first frame
+    const handleLoadedData = () => {
+      setIsLoaded(true);
+    };
+    
+    const handleError = () => {
+      setHasError(true);
+    };
+    
+    video.addEventListener("loadeddata", handleLoadedData);
+    video.addEventListener("error", handleError);
+    
+    // Fallback: if not loaded after 3 seconds, show gradient
+    const timeout = setTimeout(() => {
+      if (!isLoaded) {
+        setHasError(true);
+      }
+    }, 3000);
+    
+    return () => {
+      video.removeEventListener("loadeddata", handleLoadedData);
+      video.removeEventListener("error", handleError);
+      clearTimeout(timeout);
+    };
+  }, [src, isLoaded]);
 
   if (hasError) {
     return (
@@ -43,20 +75,20 @@ function VideoThumb({ src, title, index }: { src: string; title?: string; index:
 
   return (
     <video
+      ref={videoRef}
       src={`${src}#t=0.1`}
       muted
       playsInline
-      autoPlay
-      loop
-      preload="auto"
-      onError={() => setHasError(true)}
+      preload="metadata"
       style={{
         width: "100%",
         height: "100%",
         objectFit: "cover",
         objectPosition: "center top",
         display: "block",
-        background: "#000",
+        background: gradient,
+        opacity: isLoaded ? 1 : 0,
+        transition: "opacity 0.3s",
       }}
     />
   );
