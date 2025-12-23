@@ -59,32 +59,46 @@ export function VerticalPlayer({
     }
   }, [initialIndex]);
 
-  // Touch swipe detection for closing on last video
-  const touchStartY = useRef(0);
+  // Touch/mouse swipe detection for closing on last video
+  const swipeStartY = useRef(0);
+  const swipeStartTime = useRef(0);
+  
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const handleTouchStart = (e: TouchEvent) => {
-      touchStartY.current = e.touches[0].clientY;
+    const handleStart = (y: number) => {
+      swipeStartY.current = y;
+      swipeStartTime.current = Date.now();
     };
 
-    const handleTouchEnd = (e: TouchEvent) => {
-      const deltaY = touchStartY.current - e.changedTouches[0].clientY;
+    const handleEnd = (y: number) => {
+      const deltaY = swipeStartY.current - y;
+      const duration = Date.now() - swipeStartTime.current;
+      const velocity = deltaY / duration;
       const isOnLastVideo = currentIndex === total - 1;
       
-      // Swipe up on last video (delta > 50px) - close player
-      if (isOnLastVideo && deltaY > 50) {
+      // Swipe up on last video (significant swipe) - close player
+      if (isOnLastVideo && (deltaY > 80 || (deltaY > 30 && velocity > 0.3))) {
         onClose?.();
       }
     };
 
+    const handleTouchStart = (e: TouchEvent) => handleStart(e.touches[0].clientY);
+    const handleTouchEnd = (e: TouchEvent) => handleEnd(e.changedTouches[0].clientY);
+    const handleMouseDown = (e: MouseEvent) => handleStart(e.clientY);
+    const handleMouseUp = (e: MouseEvent) => handleEnd(e.clientY);
+
     container.addEventListener("touchstart", handleTouchStart, { passive: true });
     container.addEventListener("touchend", handleTouchEnd, { passive: true });
+    container.addEventListener("mousedown", handleMouseDown);
+    container.addEventListener("mouseup", handleMouseUp);
     
     return () => {
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("mousedown", handleMouseDown);
+      container.removeEventListener("mouseup", handleMouseUp);
     };
   }, [currentIndex, total, onClose]);
 
