@@ -3,7 +3,6 @@ import { PlaylistPayload, VideoMoment, AdMoment } from "../types";
 import { track } from "../telemetry/track";
 import { markSeen } from "./seen";
 import { DoubleTapLike } from "./DoubleTapLike";
-import { useVideoCache, preloadVideos } from "./useVideoCache";
 
 const isMobile = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
@@ -82,89 +81,59 @@ const VideoItem = memo(({
 }) => {
   const internalVideoRef = useRef<HTMLVideoElement>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [audioBlocked, setAudioBlocked] = useState(false);
   const playAttemptRef = useRef(0);
   const BASE_URL = import.meta.env.BASE_URL || "/";
 
   // AGGRESSIVE UNMOUNTING: Only mount video for distance < 2 from active
-  // This prevents hardware decoder exhaustion on mobile (limit is usually 3-6)
   const diff = Math.abs(index - activeIndex);
   const isActive = index === activeIndex;
-  const shouldMountVideo = diff < 2; // Only current and immediate neighbor
+  const shouldMountVideo = diff < 2;
 
-  const rawVideoSrc = moment.type === "video" ? moment.src : (moment as AdMoment).src;
+  const videoSrc = moment.type === "video" ? moment.src : (moment as AdMoment).src;
   const isAd = moment.type === "ad";
 
-  // Use blob caching for faster loading on iOS Safari
-  const { source: videoSrc } = useVideoCache(rawVideoSrc, shouldMountVideo);
-
-  // Handle tap on "Tap for Sound" overlay
-  const handleUnmute = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    markUserInteraction();
-    const video = internalVideoRef.current;
-    if (video) {
-      video.muted = false;
-      setAudioBlocked(false);
-    }
-  }, []);
-
-  // Aggressive play function with retries
-  const playWithSound = useCallback(async (video: HTMLVideoElement, targetMuted: boolean) => {
+  // Simple play function - always unmuted after user interaction
+  const playVideo = useCallback(async (video: HTMLVideoElement) => {
     if (!video) return;
     
     playAttemptRef.current++;
-    const currentAttempt = playAttemptRef.current;
+    const attempt = playAttemptRef.current;
     
-    // Reset video position
     video.currentTime = 0;
     
-    // CRITICAL: Always start muted, then unmute after play succeeds
-    video.muted = true;
-    setAudioBlocked(false);
+    // If user has interacted, try unmuted first
+    if (hasUserInteracted && !muted) {
+      video.muted = false;
+      try {
+        await video.play();
+        return;
+      } catch (e) {
+        // Failed unmuted, try muted
+        if (attempt !== playAttemptRef.current) return;
+      }
+    }
     
+    // Try muted
+    video.muted = true;
     try {
       await video.play();
-      
-      // After successful play, try to unmute
-      if (!targetMuted && hasUserInteracted) {
-        setTimeout(() => {
-          if (currentAttempt === playAttemptRef.current && video) {
-            try {
-              video.muted = false;
-              // Check if actually unmuted
-              if (video.muted) {
-                setAudioBlocked(true);
-              }
-            } catch (e) {
-              // Browser blocked audio
-              setAudioBlocked(true);
-            }
-          }
-        }, 100);
-      } else if (!targetMuted && !hasUserInteracted) {
-        // User hasn't interacted yet, show tap for sound
-        setAudioBlocked(true);
+      // If we wanted sound and user has interacted, unmute now
+      if (hasUserInteracted && !muted) {
+        video.muted = false;
       }
     } catch (e) {
-      // Play failed, try again after a short delay
-      setTimeout(async () => {
-        if (currentAttempt === playAttemptRef.current) {
-          try {
-            await video.play();
-            if (!targetMuted && hasUserInteracted) {
-              video.muted = false;
-            } else if (!targetMuted) {
-              setAudioBlocked(true);
-            }
-          } catch (e2) {
-            // Final fail - keep muted
-            setAudioBlocked(true);
+      // Retry after delay
+      if (attempt !== playAttemptRef.current) return;
+      setTimeout(() => {
+        if (attempt === playAttemptRef.current) {
+          video.play().catch(() => {});
+          if (hasUserInteracted && !muted) {
+            video.muted = false;
           }
         }
-      }, 200);
+      }, 150);
     }
-  }, []);
+  }, [muted]);
 
   // Handle video play/pause based on active state
   useEffect(() => {
@@ -172,20 +141,20 @@ const VideoItem = memo(({
     if (!video) return;
 
     if (isActive && !paused) {
-      playWithSound(video, muted);
+      playVideo(video);
     } else if (isActive && paused) {
       video.pause();
     } else {
-      // Not active - pause immediately and mute to release audio decoder
+      // Not active - pause and mute to release decoder
       video.pause();
-      video.muted = true; // CRITICAL: Mute non-active videos to free audio resources
+      video.muted = true;
     }
-  }, [isActive, muted, paused, playWithSound]);
+  }, [isActive, paused, playVideo]);
 
-  // Sync mute state immediately (only for active video)
+  // Sync mute state
   useEffect(() => {
     const video = internalVideoRef.current;
-    if (video && isActive && hasUserInteracted) {
+    if (video && isActive) {
       video.muted = muted;
     }
   }, [muted, isActive]);
@@ -275,15 +244,6 @@ const VideoItem = memo(({
             </button>
           )}
 
-          {/* Tap for Sound indicator (when browser blocked audio) */}
-          {isActive && audioBlocked && !paused && (
-            <div className="mmvp-tap-sound" onClick={handleUnmute}>
-              <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
-                <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
-              </svg>
-              <span>Tap for Sound</span>
-            </div>
-          )}
         </div>
       </DoubleTapLike>
 
@@ -378,10 +338,17 @@ export function VerticalPlayer({
     markUserInteraction();
     
     // Preload ALL videos using blob caching (critical for iOS Safari)
-    const videoUrls = moments
-      .filter(m => m.type === "video" || m.type === "ad")
-      .map(m => m.type === "video" ? (m as VideoMoment).src : (m as AdMoment).src);
-    preloadVideos(videoUrls);
+    // Preload first few videos using link hints
+    moments.slice(0, 4).forEach((m) => {
+      if (m.type === "video" || m.type === "ad") {
+        const src = m.type === "video" ? (m as VideoMoment).src : (m as AdMoment).src;
+        const link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "video";
+        link.href = src;
+        document.head.appendChild(link);
+      }
+    });
   }, [moments]);
 
   // Viewability detection using Intersection Observer
