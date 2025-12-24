@@ -324,6 +324,23 @@
   50% { opacity: 0.5; transform: scale(1.05); }
 }
 
+/* Dormant video placeholder (lightweight, no video element) */
+.mmvp-video-placeholder {
+  position: absolute;
+  inset: 0;
+  background: #0a0a0a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mmvp-placeholder-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #1a1a2e 0%, #0a0a0a 50%, #1a1a2e 100%);
+  opacity: 0.8;
+}
+
 /* Exit animation - video slides out */
 .mmvp-player-wrapper.mmvp-exiting {
   animation: mmvp-slide-out 0.3s ease-out forwards;

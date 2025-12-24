@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo, memo } from "react";
 import { PlaylistPayload, VideoMoment, AdMoment } from "../types";
 import { track } from "../telemetry/track";
 import { markSeen } from "./seen";
@@ -11,6 +11,216 @@ let skippedAdsInSession = new Set<string>();
 const getSkippedAds = (): Set<string> => skippedAdsInSession;
 const markAdSkipped = (id: string) => { skippedAdsInSession.add(id); };
 
+// Format time as M:SS
+const formatTime = (seconds: number) => {
+  if (!seconds || isNaN(seconds)) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
+
+// --- INDIVIDUAL VIDEO ITEM COMPONENT ---
+// This component manages its own playback based on whether it's active, preloading, or dormant
+const VideoItem = memo(({ 
+  moment, 
+  index, 
+  activeIndex,
+  muted,
+  paused,
+  onVideoEnd,
+  onTimeUpdate,
+  onTap,
+  onSkipAd,
+  videoRef,
+  total,
+}: {
+  moment: VideoMoment | AdMoment;
+  index: number;
+  activeIndex: number;
+  muted: boolean;
+  paused: boolean;
+  onVideoEnd: () => void;
+  onTimeUpdate: (currentTime: number, duration: number) => void;
+  onTap: () => void;
+  onSkipAd: () => void;
+  videoRef: (el: HTMLVideoElement | null) => void;
+  total: number;
+}) => {
+  const internalVideoRef = useRef<HTMLVideoElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const BASE_URL = import.meta.env.BASE_URL || "/";
+
+  // LOGIC (TikTok-style):
+  // 1. Active: Mount video, play it
+  // 2. Next/Prev: Mount video, pause it (preload buffer)
+  // 3. Dormant: Show poster only, no video element
+  const isActive = index === activeIndex;
+  const isNext = index === activeIndex + 1;
+  const isPrev = index === activeIndex - 1;
+  const shouldMountVideo = isActive || isNext || isPrev;
+
+  const videoSrc = moment.type === "video" ? moment.src : (moment as AdMoment).src;
+  const isAd = moment.type === "ad";
+
+  // Handle video play/pause based on active state
+  useEffect(() => {
+    const video = internalVideoRef.current;
+    if (!video) return;
+
+    if (isActive) {
+      video.currentTime = 0;
+      video.muted = muted;
+      
+      if (!paused) {
+        video.play().catch(() => {
+          // Try muted autoplay as fallback
+          video.muted = true;
+          video.play().catch(() => {});
+        });
+      } else {
+        video.pause();
+      }
+    } else {
+      // Preload but don't play
+      video.pause();
+      if (isNext || isPrev) {
+        // Preload the video
+        video.preload = "auto";
+        video.load();
+      }
+    }
+  }, [isActive, isNext, isPrev, muted, paused]);
+
+  // Sync mute state
+  useEffect(() => {
+    const video = internalVideoRef.current;
+    if (video && isActive) {
+      video.muted = muted;
+    }
+  }, [muted, isActive]);
+
+  // Sync pause state
+  useEffect(() => {
+    const video = internalVideoRef.current;
+    if (!video || !isActive) return;
+    
+    if (paused) {
+      video.pause();
+    } else {
+      video.play().catch(() => {});
+    }
+  }, [paused, isActive]);
+
+  // Time update tracking
+  useEffect(() => {
+    const video = internalVideoRef.current;
+    if (!video || !isActive) return;
+
+    const handleTimeUpdate = () => {
+      if (video.duration) {
+        onTimeUpdate(video.currentTime, video.duration);
+      }
+    };
+
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    return () => video.removeEventListener("timeupdate", handleTimeUpdate);
+  }, [isActive, onTimeUpdate]);
+
+  // Set ref for parent access
+  useEffect(() => {
+    videoRef(internalVideoRef.current);
+  }, [videoRef, shouldMountVideo]);
+
+  return (
+    <div className="mmvp-video-section" onClick={onTap}>
+      {/* Background blur for active */}
+      {isActive && (
+        <div className="mmvp-bg-blur">
+          <video src={videoSrc} muted playsInline autoPlay loop />
+        </div>
+      )}
+
+      {/* Video frame */}
+      <div className="mmvp-video-frame">
+        {/* Loading placeholder - SI logo (only for active video if still loading) */}
+        {isActive && isLoading && (
+          <div className="mmvp-loading-placeholder">
+            <img src={`${BASE_URL}si-logo.svg`} alt="Loading..." className="mmvp-loading-logo" />
+          </div>
+        )}
+
+        {shouldMountVideo ? (
+          // Active, Next, or Prev: Mount video element
+          <video
+            ref={internalVideoRef}
+            className="mmvp-video-element"
+            src={videoSrc}
+            playsInline
+            muted={muted}
+            preload="auto"
+            poster="" // No poster, we use loading placeholder
+            onEnded={onVideoEnd}
+            onCanPlay={() => setIsLoading(false)}
+            onWaiting={() => setIsLoading(true)}
+            onPlaying={() => setIsLoading(false)}
+          />
+        ) : (
+          // Dormant: Lightweight placeholder (no video element)
+          <div className="mmvp-video-placeholder">
+            <div className="mmvp-placeholder-gradient" />
+          </div>
+        )}
+
+        {/* Play overlay when paused */}
+        {isActive && paused && (
+          <div className="mmvp-play-overlay">
+            <div className="mmvp-play-icon-large">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+          </div>
+        )}
+
+        {/* Skip Ad button */}
+        {isActive && isAd && (
+          <button
+            className="mmvp-skip-ad mmvp-skip-ad-inside"
+            onClick={(e) => { e.stopPropagation(); onSkipAd(); }}
+          >
+            Skip Ad →
+          </button>
+        )}
+      </div>
+
+      {/* Sponsor box for ads */}
+      {isActive && isAd && (
+        <div className="mmvp-sponsor-box" onClick={(e) => e.stopPropagation()}>
+          <div className="mmvp-sponsor-header">
+            <div className="mmvp-sponsor-logo">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 5.41V21h-2V5.41L5.41 11 4 9.59 12 1.59l8 8L18.59 11z"/></svg>
+            </div>
+            <div className="mmvp-sponsor-info">
+              <div className="mmvp-sponsor-name">{(moment as AdMoment).sponsor.name}</div>
+              <div className="mmvp-sponsor-label">Sponsored</div>
+            </div>
+          </div>
+          <a href={(moment as AdMoment).sponsor.ctaUrl} target="_blank" rel="noopener noreferrer" className="mmvp-sponsor-cta">
+            {(moment as AdMoment).sponsor.ctaText}
+          </a>
+        </div>
+      )}
+
+      {/* Bottom info (not for ads) */}
+      {isActive && !isAd && (
+        <div className="mmvp-bottom-bar">
+          <div className="mmvp-title">{moment.title}</div>
+          <div className="mmvp-counter">{index + 1} / {total}</div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+// --- MAIN VERTICAL PLAYER COMPONENT ---
 export function VerticalPlayer({
   payload,
   initialIndex = 0,
@@ -35,46 +245,30 @@ export function VerticalPlayer({
   const [muted, setMuted] = useState(false);
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [exiting, setExiting] = useState(false);
-  const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>({});
-  const [isSeeking, setIsSeeking] = useState(false);
-  const [seekPosition, setSeekPosition] = useState<{ x: number; percent: number } | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [exiting, setExiting] = useState(false);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekPosition, setSeekPosition] = useState<{ x: number; percent: number } | null>(null);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadingTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   const current = moments[currentIndex];
   const mobile = isMobile();
-  const BASE_URL = import.meta.env.BASE_URL || "/";
-
-  // Format time as M:SS
-  const formatTime = (seconds: number) => {
-    if (!seconds || isNaN(seconds)) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
 
   // Exit with animation
   const exitWithAnimation = useCallback(() => {
     setExiting(true);
     setTimeout(() => {
       onClose?.();
-    }, 300); // Match CSS transition duration
+    }, 300);
   }, [onClose]);
 
   // Helpers
   const hasVideo = (m: typeof moments[0]) => m.type === "video" || m.type === "ad";
-  const getVideoSrc = (m: typeof moments[0]) => {
-    if (m.type === "video") return (m as VideoMoment).src;
-    if (m.type === "ad") return (m as AdMoment).src;
-    return "";
-  };
 
   // Scroll to initial index on mount
   useEffect(() => {
@@ -83,44 +277,32 @@ export function VerticalPlayer({
     }
   }, [initialIndex]);
 
-  // Eagerly preload ALL videos for instant playback
+  // Viewability detection using Intersection Observer
+  // This determines which video is "Active"
   useEffect(() => {
-    const preloadAllVideos = () => {
-      moments.forEach((_, i) => {
-        const video = videoRefs.current[i];
-        if (video && video.readyState < 4) {
-          video.preload = "auto";
-          video.load();
-        }
-      });
-    };
-    
-    // Initial preload immediately
-    preloadAllVideos();
-    
-    // Retry preloading every 300ms for 8 seconds
-    const interval = setInterval(preloadAllVideos, 300);
-    const timeout = setTimeout(() => clearInterval(interval), 8000);
-    
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
-  }, [moments]);
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            const idx = Number(entry.target.getAttribute("data-index"));
+            if (!isNaN(idx) && idx !== currentIndex) {
+              setCurrentIndex(idx);
+              setProgress(0);
+              setCurrentTime(0);
+              setPaused(false);
+            }
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
 
-  // Preload first video immediately on mount for instant start
-  useEffect(() => {
-    const firstVideo = videoRefs.current[initialIndex];
-    if (firstVideo) {
-      firstVideo.preload = "auto";
-      firstVideo.load();
-      // Try to play immediately
-      firstVideo.play().catch(() => {
-        firstVideo.muted = true;
-        firstVideo.play().catch(() => {});
-      });
-    }
-  }, [initialIndex]);
+    sectionRefs.current.forEach((section) => {
+      if (section) observerRef.current?.observe(section);
+    });
+
+    return () => observerRef.current?.disconnect();
+  }, [moments.length]);
 
   // Touch swipe detection for closing on last video (mobile)
   const touchStartY = useRef(0);
@@ -136,7 +318,6 @@ export function VerticalPlayer({
       const deltaY = touchStartY.current - e.changedTouches[0].clientY;
       const isOnLastVideo = currentIndex === total - 1;
       
-      // Swipe up on last video (delta > 50px) - close player with animation
       if (isOnLastVideo && deltaY > 50) {
         exitWithAnimation();
       }
@@ -163,16 +344,13 @@ export function VerticalPlayer({
       const isOnLastVideo = currentIndex === total - 1;
       
       if (isOnLastVideo && e.deltaY > 0) {
-        // Scrolling down on last video
         scrollAccumulator += e.deltaY;
         
-        // Reset accumulator after 300ms of no scrolling
         clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
           scrollAccumulator = 0;
         }, 300);
         
-        // If accumulated scroll is enough, close player with animation
         if (scrollAccumulator > 150) {
           exitWithAnimation();
           scrollAccumulator = 0;
@@ -190,131 +368,12 @@ export function VerticalPlayer({
     };
   }, [currentIndex, total, exitWithAnimation, mobile]);
 
-  // Intersection Observer for video play/pause
-  useEffect(() => {
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const idx = Number(entry.target.getAttribute("data-index"));
-          const video = videoRefs.current[idx];
-          const moment = moments[idx];
-          
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-            // This video is now the main one
-            setCurrentIndex(idx);
-            setPaused(false);
-            setProgress(0);
-            
-            if (video) {
-              video.currentTime = 0;
-              video.muted = muted;
-              
-              // For ads, ensure video is loaded before playing
-              const playVideo = () => {
-                video.play().catch(() => {
-                  // Try muted autoplay
-                  video.muted = true;
-                  video.play().catch(() => {});
-                });
-              };
-              
-              if (moment?.type === "ad" && video.readyState < 3) {
-                // Ad not ready - load and wait
-                video.load();
-                const handleCanPlay = () => {
-                  playVideo();
-                  video.removeEventListener("canplay", handleCanPlay);
-                };
-                video.addEventListener("canplay", handleCanPlay);
-                // Also try playing after a short delay as fallback
-                setTimeout(playVideo, 300);
-              } else {
-                playVideo();
-              }
-            }
-          } else {
-            // Pause and reset videos that are not visible
-            if (video) {
-              video.pause();
-              video.currentTime = 0;
-            }
-          }
-        });
-      },
-      { threshold: 0.6 }
-    );
-
-    // Observe all sections
-    sectionRefs.current.forEach((section) => {
-      if (section) observerRef.current?.observe(section);
-    });
-
-    return () => observerRef.current?.disconnect();
-  }, [moments, muted]);
-
-  // Sync mute state to current video
-  useEffect(() => {
-    const video = videoRefs.current[currentIndex];
-    if (video) video.muted = muted;
-  }, [muted, currentIndex]);
-
-  // Sync pause state
-  useEffect(() => {
-    const video = videoRefs.current[currentIndex];
-    if (!video) return;
-    if (paused) {
-      video.pause();
-    } else {
-      video.play().catch(() => {});
-    }
-  }, [paused, currentIndex]);
-
-  // Track progress, current time, and duration
-  useEffect(() => {
-    const video = videoRefs.current[currentIndex];
-    if (!video) return;
-
-    const handleTimeUpdate = () => {
-      if (video.duration && !isSeeking) {
-        setProgress(video.currentTime / video.duration);
-        setCurrentTime(video.currentTime);
-        setDuration(video.duration);
-      }
-    };
-    
-    const handleLoadedMetadata = () => {
-      setDuration(video.duration);
-    };
-    
-    video.addEventListener("timeupdate", handleTimeUpdate);
-    video.addEventListener("loadedmetadata", handleLoadedMetadata);
-    
-    // Set initial duration if available
-    if (video.duration) setDuration(video.duration);
-    
-    return () => {
-      video.removeEventListener("timeupdate", handleTimeUpdate);
-      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-    };
-  }, [currentIndex, isSeeking]);
-
   // Track moment view
   useEffect(() => {
     if (!current) return;
     markSeen(current.content_id);
     track("moment_start", { content_id: current.content_id, position: currentIndex + 1 });
   }, [currentIndex, current]);
-
-  // Handle video end - scroll to next
-  const handleVideoEnd = useCallback((idx: number) => {
-    if (idx === currentIndex) {
-      if (idx < total - 1) {
-        sectionRefs.current[idx + 1]?.scrollIntoView({ behavior: "smooth" });
-      } else {
-        exitWithAnimation();
-      }
-    }
-  }, [currentIndex, total, exitWithAnimation]);
 
   // Navigation
   const goNext = useCallback(() => {
@@ -349,6 +408,32 @@ export function VerticalPlayer({
     setPaused(p => !p);
   }, []);
 
+  // Time update handler
+  const handleTimeUpdate = useCallback((time: number, dur: number) => {
+    if (!isSeeking) {
+      setCurrentTime(time);
+      setDuration(dur);
+      setProgress(dur ? time / dur : 0);
+    }
+  }, [isSeeking]);
+
+  // Video end handler
+  const handleVideoEnd = useCallback((idx: number) => {
+    if (idx === currentIndex) {
+      if (idx < total - 1) {
+        sectionRefs.current[idx + 1]?.scrollIntoView({ behavior: "smooth" });
+      } else {
+        exitWithAnimation();
+      }
+    }
+  }, [currentIndex, total, exitWithAnimation]);
+
+  // Skip ad handler
+  const handleSkipAd = useCallback((contentId: string) => {
+    markAdSkipped(contentId);
+    goNext();
+  }, [goNext]);
+
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (navigator.share) {
@@ -364,110 +449,27 @@ export function VerticalPlayer({
       <div ref={containerRef} className="mmvp-scroll-container">
         {moments.map((moment, i) => {
           if (!hasVideo(moment)) return null;
-          const isActive = i === currentIndex;
-          const isNear = Math.abs(i - currentIndex) <= 1;
           
           return (
             <div
               key={moment.content_id}
               ref={(el) => { sectionRefs.current[i] = el; }}
               data-index={i}
-              className="mmvp-video-section"
-              onClick={handleTap}
+              style={{ width: "100%", height: "100%" }}
             >
-              {/* Background blur for active */}
-              {isActive && (
-                <div className="mmvp-bg-blur">
-                  <video src={getVideoSrc(moment)} muted playsInline autoPlay loop />
-                </div>
-              )}
-
-              {/* Video frame */}
-              <div className="mmvp-video-frame">
-                {/* Loading placeholder - SI logo watermark (only shows if loading takes > 500ms) */}
-                {loadingStates[i] && (
-                  <div className="mmvp-loading-placeholder">
-                    <img src={`${BASE_URL}si-logo.svg`} alt="Loading..." className="mmvp-loading-logo" />
-                  </div>
-                )}
-                
-                <video
-                  ref={(el) => { 
-                    videoRefs.current[i] = el;
-                    // Start loading timer when video ref is set
-                    if (el && isNear) {
-                      // Clear any existing timer
-                      if (loadingTimers.current[i]) {
-                        clearTimeout(loadingTimers.current[i]);
-                      }
-                      // Set loading state after 500ms if not ready
-                      loadingTimers.current[i] = setTimeout(() => {
-                        if (el.readyState < 3) {
-                          setLoadingStates(prev => ({ ...prev, [i]: true }));
-                        }
-                      }, 500);
-                    }
-                  }}
-                  className="mmvp-video-element"
-                  src={getVideoSrc(moment)}
-                  playsInline
-                  muted={muted}
-                  preload={isNear || moment.type === "ad" ? "auto" : "metadata"}
-                  onEnded={() => handleVideoEnd(i)}
-                  onCanPlay={() => {
-                    // Clear loading state when video can play
-                    if (loadingTimers.current[i]) {
-                      clearTimeout(loadingTimers.current[i]);
-                    }
-                    setLoadingStates(prev => ({ ...prev, [i]: false }));
-                  }}
-                />
-
-                {/* Play overlay when paused */}
-                {isActive && paused && (
-                  <div className="mmvp-play-overlay">
-                    <div className="mmvp-play-icon-large">
-                      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                    </div>
-                  </div>
-                )}
-
-                {/* Skip Ad button */}
-                {isActive && moment.type === "ad" && (
-                  <button
-                    className="mmvp-skip-ad mmvp-skip-ad-inside"
-                    onClick={(e) => { e.stopPropagation(); markAdSkipped(moment.content_id); goNext(); }}
-                  >
-                    Skip Ad →
-                  </button>
-                )}
-              </div>
-
-              {/* Sponsor box for ads */}
-              {isActive && moment.type === "ad" && (
-                <div className="mmvp-sponsor-box" onClick={(e) => e.stopPropagation()}>
-                  <div className="mmvp-sponsor-header">
-                    <div className="mmvp-sponsor-logo">
-                      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 5.41V21h-2V5.41L5.41 11 4 9.59 12 1.59l8 8L18.59 11z"/></svg>
-                    </div>
-                    <div className="mmvp-sponsor-info">
-                      <div className="mmvp-sponsor-name">{(moment as AdMoment).sponsor.name}</div>
-                      <div className="mmvp-sponsor-label">Sponsored</div>
-                    </div>
-                  </div>
-                  <a href={(moment as AdMoment).sponsor.ctaUrl} target="_blank" rel="noopener noreferrer" className="mmvp-sponsor-cta">
-                    {(moment as AdMoment).sponsor.ctaText}
-                  </a>
-                </div>
-              )}
-
-              {/* Bottom info (not for ads) */}
-              {isActive && moment.type !== "ad" && (
-                <div className="mmvp-bottom-bar">
-                  <div className="mmvp-title">{moment.title}</div>
-                  <div className="mmvp-counter">{i + 1} / {total}</div>
-                </div>
-              )}
+              <VideoItem
+                moment={moment as VideoMoment | AdMoment}
+                index={i}
+                activeIndex={currentIndex}
+                muted={muted}
+                paused={paused}
+                onVideoEnd={() => handleVideoEnd(i)}
+                onTimeUpdate={handleTimeUpdate}
+                onTap={handleTap}
+                onSkipAd={() => handleSkipAd(moment.content_id)}
+                videoRef={(el) => { videoRefs.current[i] = el; }}
+                total={total}
+              />
             </div>
           );
         })}
@@ -509,8 +511,8 @@ export function VerticalPlayer({
         <span className="mmvp-time-duration">{formatTime(duration)}</span>
       </div>
 
-      {/* Preview thumbnail when seeking */}
-      {isSeeking && seekPosition && current && (
+      {/* Preview when seeking */}
+      {isSeeking && seekPosition && (
         <div 
           className="mmvp-seek-preview"
           style={{ left: `${Math.max(60, Math.min(seekPosition.x, window.innerWidth - 60))}px` }}
@@ -520,7 +522,7 @@ export function VerticalPlayer({
         </div>
       )}
 
-      {/* Progress bar - fixed at bottom of screen, interactive on both mobile and desktop */}
+      {/* Progress bar - fixed at bottom */}
       <div 
         className="mmvp-progress-bottom"
         onClick={(e) => {
