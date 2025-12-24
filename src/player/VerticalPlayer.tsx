@@ -7,7 +7,33 @@ const isMobile = () => typeof window !== "undefined" && window.matchMedia("(poin
 
 // Global flag to track if user has interacted (for autoplay policies)
 let hasUserInteracted = false;
-const markUserInteraction = () => { hasUserInteracted = true; };
+let audioContextUnlocked = false;
+
+const markUserInteraction = () => { 
+  hasUserInteracted = true;
+  
+  // Unlock audio context on first interaction (critical for iOS)
+  if (!audioContextUnlocked) {
+    audioContextUnlocked = true;
+    try {
+      // Create and immediately close an audio context to unlock audio
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContext) {
+        const ctx = new AudioContext();
+        ctx.resume().then(() => {
+          // Create a silent buffer and play it
+          const buffer = ctx.createBuffer(1, 1, 22050);
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination);
+          source.start(0);
+        });
+      }
+    } catch (e) {
+      // Silent fail
+    }
+  }
+};
 
 // In-memory storage for skipped ads (resets on page refresh)
 let skippedAdsInSession = new Set<string>();
@@ -55,11 +81,11 @@ const VideoItem = memo(({
   const playAttemptRef = useRef(0);
   const BASE_URL = import.meta.env.BASE_URL || "/";
 
-  // TikTok-style: Only mount video for active, next, and previous
+  // AGGRESSIVE UNMOUNTING: Only mount video for distance < 2 from active
+  // This prevents hardware decoder exhaustion on mobile (limit is usually 3-6)
+  const diff = Math.abs(index - activeIndex);
   const isActive = index === activeIndex;
-  const isNext = index === activeIndex + 1;
-  const isPrev = index === activeIndex - 1;
-  const shouldMountVideo = isActive || isNext || isPrev;
+  const shouldMountVideo = diff < 2; // Only current and immediate neighbor
 
   const videoSrc = moment.type === "video" ? moment.src : (moment as AdMoment).src;
   const isAd = moment.type === "ad";
@@ -73,32 +99,36 @@ const VideoItem = memo(({
     
     // Reset video position
     video.currentTime = 0;
-    video.muted = targetMuted;
     
-    // First try: play with desired mute state
-    try {
-      await video.play();
-      return; // Success!
-    } catch (e) {
-      // If this attempt is stale, abort
-      if (currentAttempt !== playAttemptRef.current) return;
-    }
+    // CRITICAL: Always start muted, then unmute after play succeeds
+    video.muted = true;
     
-    // Second try: play muted first, then unmute
     try {
-      video.muted = true;
       await video.play();
       
-      // If user has interacted and we want sound, unmute after a tiny delay
+      // After successful play, set the desired mute state
       if (!targetMuted && hasUserInteracted) {
+        // Small delay to ensure play is stable before unmuting
         setTimeout(() => {
-          if (currentAttempt === playAttemptRef.current) {
+          if (currentAttempt === playAttemptRef.current && video) {
             video.muted = false;
           }
-        }, 50);
+        }, 100);
       }
     } catch (e) {
-      // Silent fail - video will show but not play
+      // Play failed, try again after a short delay
+      setTimeout(async () => {
+        if (currentAttempt === playAttemptRef.current) {
+          try {
+            await video.play();
+            if (!targetMuted && hasUserInteracted) {
+              video.muted = false;
+            }
+          } catch (e2) {
+            // Final fail - keep muted
+          }
+        }
+      }, 200);
     }
   }, []);
 
@@ -112,15 +142,16 @@ const VideoItem = memo(({
     } else if (isActive && paused) {
       video.pause();
     } else {
-      // Not active - pause and preload
+      // Not active - pause immediately and mute to release audio decoder
       video.pause();
+      video.muted = true; // CRITICAL: Mute non-active videos to free audio resources
     }
   }, [isActive, muted, paused, playWithSound]);
 
-  // Sync mute state immediately
+  // Sync mute state immediately (only for active video)
   useEffect(() => {
     const video = internalVideoRef.current;
-    if (video && isActive) {
+    if (video && isActive && hasUserInteracted) {
       video.muted = muted;
     }
   }, [muted, isActive]);
@@ -164,24 +195,29 @@ const VideoItem = memo(({
         )}
 
         {shouldMountVideo ? (
-          // Active, Next, or Prev: Mount video element
+          // Active or neighbor: Mount video element
+          // CRITICAL: Always start muted, JS will unmute after play succeeds
           <video
             ref={internalVideoRef}
             className="mmvp-video-element"
             src={videoSrc}
             playsInline
-            muted={muted}
+            muted // Always start muted for autoplay policy
             preload="auto"
-            poster="" // No poster, we use loading placeholder
             onEnded={onVideoEnd}
             onCanPlay={() => setIsLoading(false)}
             onWaiting={() => setIsLoading(true)}
             onPlaying={() => setIsLoading(false)}
           />
         ) : (
-          // Dormant: Lightweight placeholder (no video element)
+          // Dormant: No video element - frees hardware decoder
           <div className="mmvp-video-placeholder">
-            <div className="mmvp-placeholder-gradient" />
+            <img 
+              src={`${BASE_URL}si-logo.svg`} 
+              alt="" 
+              className="mmvp-loading-logo" 
+              style={{ opacity: 0.15 }}
+            />
           </div>
         )}
 
