@@ -83,32 +83,44 @@ export function VerticalPlayer({
     }
   }, [initialIndex]);
 
-  // Eagerly preload all ad videos - run periodically until all ads are loaded
+  // Eagerly preload ALL videos for instant playback
   useEffect(() => {
-    const preloadAds = () => {
-      moments.forEach((moment, i) => {
-        if (moment.type === "ad") {
-          const video = videoRefs.current[i];
-          if (video && video.readyState < 4) {
-            video.preload = "auto";
-            video.load();
-          }
+    const preloadAllVideos = () => {
+      moments.forEach((_, i) => {
+        const video = videoRefs.current[i];
+        if (video && video.readyState < 4) {
+          video.preload = "auto";
+          video.load();
         }
       });
     };
     
-    // Initial preload
-    preloadAds();
+    // Initial preload immediately
+    preloadAllVideos();
     
-    // Retry preloading every 500ms for 5 seconds to ensure ads are loaded
-    const interval = setInterval(preloadAds, 500);
-    const timeout = setTimeout(() => clearInterval(interval), 5000);
+    // Retry preloading every 300ms for 8 seconds
+    const interval = setInterval(preloadAllVideos, 300);
+    const timeout = setTimeout(() => clearInterval(interval), 8000);
     
     return () => {
       clearInterval(interval);
       clearTimeout(timeout);
     };
   }, [moments]);
+
+  // Preload first video immediately on mount for instant start
+  useEffect(() => {
+    const firstVideo = videoRefs.current[initialIndex];
+    if (firstVideo) {
+      firstVideo.preload = "auto";
+      firstVideo.load();
+      // Try to play immediately
+      firstVideo.play().catch(() => {
+        firstVideo.muted = true;
+        firstVideo.play().catch(() => {});
+      });
+    }
+  }, [initialIndex]);
 
   // Touch swipe detection for closing on last video (mobile)
   const touchStartY = useRef(0);

@@ -16,49 +16,100 @@ const GRADIENTS = [
   "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
 ];
 
-// Video thumbnail - autoplay muted
+// Video thumbnail - autoplay muted with aggressive mobile support
 function VideoThumb({ src, title, index }: { src: string; title?: string; index: number }) {
   const [hasError, setHasError] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   const gradient = GRADIENTS[index % GRADIENTS.length];
 
-  if (hasError) {
-    return (
-      <div 
-        style={{
-          width: "100%",
-          height: "100%",
-          background: gradient,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <span style={{ color: "white", fontSize: "14px", textAlign: "center", fontWeight: 600, padding: "16px" }}>
-          {title || "Video"}
-        </span>
-      </div>
+  // Intersection observer to play only when visible
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      { threshold: 0.1 }
     );
-  }
+    
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  // Force play on mobile - aggressive retries
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isVisible) return;
+    
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    const tryPlay = () => {
+      if (attempts >= maxAttempts) return;
+      attempts++;
+      video.play().catch(() => {});
+    };
+    
+    // Try on load events
+    video.addEventListener("loadeddata", tryPlay);
+    video.addEventListener("canplay", tryPlay);
+    
+    // Try immediately and repeatedly
+    tryPlay();
+    const interval = setInterval(tryPlay, 200);
+    const cleanup = setTimeout(() => clearInterval(interval), 2000);
+    
+    return () => {
+      video.removeEventListener("loadeddata", tryPlay);
+      video.removeEventListener("canplay", tryPlay);
+      clearInterval(interval);
+      clearTimeout(cleanup);
+    };
+  }, [src, isVisible]);
 
   return (
-    <video
-      src={`${src}#t=0.1`}
-      muted
-      playsInline
-      autoPlay
-      loop
-      preload="auto"
-      onError={() => setHasError(true)}
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-        objectPosition: "center top",
-        display: "block",
-        background: "#000",
-      }}
-    />
+    <div ref={containerRef} style={{ width: "100%", height: "100%", background: "#000" }}>
+      {hasError ? (
+        <div 
+          style={{
+            width: "100%",
+            height: "100%",
+            background: gradient,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <span style={{ color: "white", fontSize: "14px", textAlign: "center", fontWeight: 600, padding: "16px" }}>
+            {title || "Video"}
+          </span>
+        </div>
+      ) : (
+        <video
+          ref={videoRef}
+          src={`${src}#t=0.1`}
+          muted
+          playsInline
+          autoPlay
+          loop
+          preload="auto"
+          onError={() => setHasError(true)}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: "center top",
+            display: "block",
+            background: "#000",
+          }}
+        />
+      )}
+    </div>
   );
 }
 
@@ -107,6 +158,27 @@ export function Widget({ hostEl }: { hostEl: HTMLElement }) {
   const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Preload all videos on mount for instant player opening
+  useEffect(() => {
+    payload.moments.forEach((moment) => {
+      if (moment.type === "video" || moment.type === "ad") {
+        const src = (moment as VideoMoment).src;
+        // Create hidden video elements to preload
+        const video = document.createElement("video");
+        video.preload = "auto";
+        video.muted = true;
+        video.src = src;
+        video.load();
+        // Also add link preload for browser-level caching
+        const link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "video";
+        link.href = src;
+        document.head.appendChild(link);
+      }
+    });
+  }, [payload.moments]);
 
   // Filter out ads for carousel display (ads don't show thumbnails)
   const visibleMoments = useMemo(() => 
