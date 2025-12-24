@@ -1,8 +1,9 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { CentralModal } from "./CentralModal";
 import { VerticalPlayer } from "../player/VerticalPlayer";
-import { PlaylistPayload, Moment, VideoMoment } from "../types";
+import { PlaylistPayload, Moment, VideoMoment, AdMoment } from "../types";
 import { getDemoPayload } from "./demoPayload";
+import { preloadVideos } from "../player/useVideoCache";
 
 // Gradient colors for fallback thumbnails
 const GRADIENTS = [
@@ -159,25 +160,14 @@ export function Widget({ hostEl }: { hostEl: HTMLElement }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Preload all videos on mount for instant player opening
+  // Preload all videos into Cache API on mount for instant player opening
   useEffect(() => {
-    payload.moments.forEach((moment) => {
-      if (moment.type === "video" || moment.type === "ad") {
-        const src = (moment as VideoMoment).src;
-        // Create hidden video elements to preload
-        const video = document.createElement("video");
-        video.preload = "auto";
-        video.muted = true;
-        video.src = src;
-        video.load();
-        // Also add link preload for browser-level caching
-        const link = document.createElement("link");
-        link.rel = "preload";
-        link.as = "video";
-        link.href = src;
-        document.head.appendChild(link);
-      }
-    });
+    const videoUrls = payload.moments
+      .filter(m => m.type === "video" || m.type === "ad")
+      .map(m => m.type === "video" ? (m as VideoMoment).src : (m as AdMoment).src);
+    
+    // Use our caching system to preload videos
+    preloadVideos(videoUrls);
   }, [payload.moments]);
 
   // Filter out ads for carousel display (ads don't show thumbnails)

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo, memo } from "
 import { PlaylistPayload, VideoMoment, AdMoment } from "../types";
 import { track } from "../telemetry/track";
 import { markSeen } from "./seen";
+import { useVideoCache, preloadVideos } from "./useVideoCache";
 
 const isMobile = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
@@ -59,8 +60,11 @@ const VideoItem = memo(({
   const isPrev = index === activeIndex - 1;
   const shouldMountVideo = isActive || isNext || isPrev;
 
-  const videoSrc = moment.type === "video" ? moment.src : (moment as AdMoment).src;
+  const rawVideoSrc = moment.type === "video" ? moment.src : (moment as AdMoment).src;
   const isAd = moment.type === "ad";
+
+  // Use cached video source (blob URL if available, otherwise network URL)
+  const { source: videoSrc, isCached } = useVideoCache(rawVideoSrc, shouldMountVideo);
 
   // Handle video play/pause based on active state
   useEffect(() => {
@@ -276,6 +280,14 @@ export function VerticalPlayer({
       sectionRefs.current[initialIndex]?.scrollIntoView({ behavior: "auto" });
     }
   }, [initialIndex]);
+
+  // Preload all videos into cache on mount for instant playback
+  useEffect(() => {
+    const videoUrls = moments
+      .filter(m => m.type === "video" || m.type === "ad")
+      .map(m => m.type === "video" ? (m as VideoMoment).src : (m as AdMoment).src);
+    preloadVideos(videoUrls);
+  }, [moments]);
 
   // Viewability detection using Intersection Observer
   // This determines which video is "Active"
