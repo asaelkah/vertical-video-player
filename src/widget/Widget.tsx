@@ -3,7 +3,6 @@ import { CentralModal } from "./CentralModal";
 import { VerticalPlayer } from "../player/VerticalPlayer";
 import { PlaylistPayload, Moment, VideoMoment, AdMoment } from "../types";
 import { getDemoPayload } from "./demoPayload";
-import { preloadVideos } from "../player/useVideoCache";
 
 // Gradient colors for fallback thumbnails
 const GRADIENTS = [
@@ -162,12 +161,17 @@ export function Widget({ hostEl }: { hostEl: HTMLElement }) {
 
   // Preload all videos into Cache API on mount for instant player opening
   useEffect(() => {
-    const videoUrls = payload.moments
-      .filter(m => m.type === "video" || m.type === "ad")
-      .map(m => m.type === "video" ? (m as VideoMoment).src : (m as AdMoment).src);
-    
-    // Use our caching system to preload videos
-    preloadVideos(videoUrls);
+    // Preload first few videos using link hints for browser caching
+    payload.moments.slice(0, 5).forEach((m) => {
+      if (m.type === "video" || m.type === "ad") {
+        const src = m.type === "video" ? (m as VideoMoment).src : (m as AdMoment).src;
+        const link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "video";
+        link.href = src;
+        document.head.appendChild(link);
+      }
+    });
   }, [payload.moments]);
 
   // Filter out ads for carousel display (ads don't show thumbnails)

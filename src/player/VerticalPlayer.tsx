@@ -2,9 +2,12 @@ import React, { useEffect, useRef, useState, useCallback, useMemo, memo } from "
 import { PlaylistPayload, VideoMoment, AdMoment } from "../types";
 import { track } from "../telemetry/track";
 import { markSeen } from "./seen";
-import { useVideoCache, preloadVideos } from "./useVideoCache";
 
 const isMobile = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+
+// Global flag to track if user has interacted (for autoplay policies)
+let hasUserInteracted = false;
+const markUserInteraction = () => { hasUserInteracted = true; };
 
 // In-memory storage for skipped ads (resets on page refresh)
 let skippedAdsInSession = new Set<string>();
@@ -49,71 +52,78 @@ const VideoItem = memo(({
 }) => {
   const internalVideoRef = useRef<HTMLVideoElement>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const playAttemptRef = useRef(0);
   const BASE_URL = import.meta.env.BASE_URL || "/";
 
-  // LOGIC (TikTok-style):
-  // 1. Active: Mount video, play it
-  // 2. Next/Prev: Mount video, pause it (preload buffer)
-  // 3. Dormant: Show poster only, no video element
+  // TikTok-style: Only mount video for active, next, and previous
   const isActive = index === activeIndex;
   const isNext = index === activeIndex + 1;
   const isPrev = index === activeIndex - 1;
   const shouldMountVideo = isActive || isNext || isPrev;
 
-  const rawVideoSrc = moment.type === "video" ? moment.src : (moment as AdMoment).src;
+  const videoSrc = moment.type === "video" ? moment.src : (moment as AdMoment).src;
   const isAd = moment.type === "ad";
 
-  // Use cached video source (blob URL if available, otherwise network URL)
-  const { source: videoSrc, isCached } = useVideoCache(rawVideoSrc, shouldMountVideo);
+  // Aggressive play function with retries
+  const playWithSound = useCallback(async (video: HTMLVideoElement, targetMuted: boolean) => {
+    if (!video) return;
+    
+    playAttemptRef.current++;
+    const currentAttempt = playAttemptRef.current;
+    
+    // Reset video position
+    video.currentTime = 0;
+    video.muted = targetMuted;
+    
+    // First try: play with desired mute state
+    try {
+      await video.play();
+      return; // Success!
+    } catch (e) {
+      // If this attempt is stale, abort
+      if (currentAttempt !== playAttemptRef.current) return;
+    }
+    
+    // Second try: play muted first, then unmute
+    try {
+      video.muted = true;
+      await video.play();
+      
+      // If user has interacted and we want sound, unmute after a tiny delay
+      if (!targetMuted && hasUserInteracted) {
+        setTimeout(() => {
+          if (currentAttempt === playAttemptRef.current) {
+            video.muted = false;
+          }
+        }, 50);
+      }
+    } catch (e) {
+      // Silent fail - video will show but not play
+    }
+  }, []);
 
   // Handle video play/pause based on active state
   useEffect(() => {
     const video = internalVideoRef.current;
     if (!video) return;
 
-    if (isActive) {
-      video.currentTime = 0;
-      video.muted = muted;
-      
-      if (!paused) {
-        video.play().catch(() => {
-          // Try muted autoplay as fallback
-          video.muted = true;
-          video.play().catch(() => {});
-        });
-      } else {
-        video.pause();
-      }
-    } else {
-      // Preload but don't play
+    if (isActive && !paused) {
+      playWithSound(video, muted);
+    } else if (isActive && paused) {
       video.pause();
-      if (isNext || isPrev) {
-        // Preload the video
-        video.preload = "auto";
-        video.load();
-      }
+    } else {
+      // Not active - pause and preload
+      video.pause();
     }
-  }, [isActive, isNext, isPrev, muted, paused]);
+  }, [isActive, muted, paused, playWithSound]);
 
-  // Sync mute state
+  // Sync mute state immediately
   useEffect(() => {
     const video = internalVideoRef.current;
     if (video && isActive) {
       video.muted = muted;
     }
   }, [muted, isActive]);
-
-  // Sync pause state
-  useEffect(() => {
-    const video = internalVideoRef.current;
-    if (!video || !isActive) return;
-    
-    if (paused) {
-      video.pause();
-    } else {
-      video.play().catch(() => {});
-    }
-  }, [paused, isActive]);
 
   // Time update tracking
   useEffect(() => {
@@ -281,12 +291,21 @@ export function VerticalPlayer({
     }
   }, [initialIndex]);
 
-  // Preload all videos into cache on mount for instant playback
+  // Mark user interaction on mount (user clicked to open player)
   useEffect(() => {
-    const videoUrls = moments
-      .filter(m => m.type === "video" || m.type === "ad")
-      .map(m => m.type === "video" ? (m as VideoMoment).src : (m as AdMoment).src);
-    preloadVideos(videoUrls);
+    markUserInteraction();
+    
+    // Preload nearby videos using link preload hints
+    moments.slice(0, 5).forEach((m) => {
+      if (m.type === "video" || m.type === "ad") {
+        const src = m.type === "video" ? (m as VideoMoment).src : (m as AdMoment).src;
+        const link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "video";
+        link.href = src;
+        document.head.appendChild(link);
+      }
+    });
   }, [moments]);
 
   // Viewability detection using Intersection Observer
@@ -417,6 +436,7 @@ export function VerticalPlayer({
 
   // Tap to pause/play
   const handleTap = useCallback(() => {
+    markUserInteraction();
     setPaused(p => !p);
   }, []);
 
