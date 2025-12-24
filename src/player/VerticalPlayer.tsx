@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo, memo } from "
 import { PlaylistPayload, VideoMoment, AdMoment } from "../types";
 import { track } from "../telemetry/track";
 import { markSeen } from "./seen";
+import { DoubleTapLike } from "./DoubleTapLike";
 
 const isMobile = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
@@ -60,6 +61,7 @@ const VideoItem = memo(({
   onVideoEnd,
   onTimeUpdate,
   onTap,
+  onDoubleTap,
   onSkipAd,
   videoRef,
   total,
@@ -70,6 +72,7 @@ const VideoItem = memo(({
   muted: boolean;
   paused: boolean;
   onVideoEnd: () => void;
+  onDoubleTap: () => void;
   onTimeUpdate: (currentTime: number, duration: number) => void;
   onTap: () => void;
   onSkipAd: () => void;
@@ -177,7 +180,7 @@ const VideoItem = memo(({
   }, [videoRef, shouldMountVideo]);
 
   return (
-    <div className="mmvp-video-section" onClick={onTap}>
+    <div className="mmvp-video-section">
       {/* Background blur for active */}
       {isActive && (
         <div className="mmvp-bg-blur">
@@ -185,61 +188,63 @@ const VideoItem = memo(({
         </div>
       )}
 
-      {/* Video frame */}
-      <div className="mmvp-video-frame">
-        {/* Loading placeholder - SI logo (only for active video if still loading) */}
-        {isActive && isLoading && (
-          <div className="mmvp-loading-placeholder">
-            <img src={`${BASE_URL}si-logo.svg`} alt="Loading..." className="mmvp-loading-logo" />
-          </div>
-        )}
-
-        {shouldMountVideo ? (
-          // Active or neighbor: Mount video element
-          // CRITICAL: Always start muted, JS will unmute after play succeeds
-          <video
-            ref={internalVideoRef}
-            className="mmvp-video-element"
-            src={videoSrc}
-            playsInline
-            muted // Always start muted for autoplay policy
-            preload="auto"
-            onEnded={onVideoEnd}
-            onCanPlay={() => setIsLoading(false)}
-            onWaiting={() => setIsLoading(true)}
-            onPlaying={() => setIsLoading(false)}
-          />
-        ) : (
-          // Dormant: No video element - frees hardware decoder
-          <div className="mmvp-video-placeholder">
-            <img 
-              src={`${BASE_URL}si-logo.svg`} 
-              alt="" 
-              className="mmvp-loading-logo" 
-              style={{ opacity: 0.15 }}
-            />
-          </div>
-        )}
-
-        {/* Play overlay when paused */}
-        {isActive && paused && (
-          <div className="mmvp-play-overlay">
-            <div className="mmvp-play-icon-large">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      {/* Video frame with double-tap-to-like */}
+      <DoubleTapLike onLike={onDoubleTap} onSingleTap={onTap}>
+        <div className="mmvp-video-frame">
+          {/* Loading placeholder - SI logo (only for active video if still loading) */}
+          {isActive && isLoading && (
+            <div className="mmvp-loading-placeholder">
+              <img src={`${BASE_URL}si-logo.svg`} alt="Loading..." className="mmvp-loading-logo" />
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Skip Ad button */}
-        {isActive && isAd && (
-          <button
-            className="mmvp-skip-ad mmvp-skip-ad-inside"
-            onClick={(e) => { e.stopPropagation(); onSkipAd(); }}
-          >
-            Skip Ad →
-          </button>
-        )}
-      </div>
+          {shouldMountVideo ? (
+            // Active or neighbor: Mount video element
+            // CRITICAL: Always start muted, JS will unmute after play succeeds
+            <video
+              ref={internalVideoRef}
+              className="mmvp-video-element"
+              src={videoSrc}
+              playsInline
+              muted // Always start muted for autoplay policy
+              preload="auto"
+              onEnded={onVideoEnd}
+              onCanPlay={() => setIsLoading(false)}
+              onWaiting={() => setIsLoading(true)}
+              onPlaying={() => setIsLoading(false)}
+            />
+          ) : (
+            // Dormant: No video element - frees hardware decoder
+            <div className="mmvp-video-placeholder">
+              <img 
+                src={`${BASE_URL}si-logo.svg`} 
+                alt="" 
+                className="mmvp-loading-logo" 
+                style={{ opacity: 0.15 }}
+              />
+            </div>
+          )}
+
+          {/* Play overlay when paused */}
+          {isActive && paused && (
+            <div className="mmvp-play-overlay">
+              <div className="mmvp-play-icon-large">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+            </div>
+          )}
+
+          {/* Skip Ad button */}
+          {isActive && isAd && (
+            <button
+              className="mmvp-skip-ad mmvp-skip-ad-inside"
+              onClick={(e) => { e.stopPropagation(); onSkipAd(); }}
+            >
+              Skip Ad →
+            </button>
+          )}
+        </div>
+      </DoubleTapLike>
 
       {/* Sponsor box for ads */}
       {isActive && isAd && (
@@ -470,11 +475,20 @@ export function VerticalPlayer({
     return () => window.removeEventListener("keydown", onKey);
   }, [goNext, goPrev, onClose]);
 
-  // Tap to pause/play
+  // Single tap to pause/play
   const handleTap = useCallback(() => {
     markUserInteraction();
     setPaused(p => !p);
   }, []);
+
+  // Double tap to like (Instagram/TikTok style)
+  const handleDoubleTap = useCallback(() => {
+    markUserInteraction();
+    // Track the like event
+    if (current) {
+      track("moment_like", { content_id: current.content_id, position: currentIndex + 1 });
+    }
+  }, [current, currentIndex]);
 
   // Time update handler
   const handleTimeUpdate = useCallback((time: number, dur: number) => {
@@ -534,6 +548,7 @@ export function VerticalPlayer({
                 onVideoEnd={() => handleVideoEnd(i)}
                 onTimeUpdate={handleTimeUpdate}
                 onTap={handleTap}
+                onDoubleTap={handleDoubleTap}
                 onSkipAd={() => handleSkipAd(moment.content_id)}
                 videoRef={(el) => { videoRefs.current[i] = el; }}
                 total={total}
