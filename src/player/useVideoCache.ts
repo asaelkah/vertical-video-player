@@ -1,129 +1,84 @@
 /**
- * Video Caching Hook for Web
+ * Video Caching Hook for Web (iOS Safari Compatible)
  * 
- * Uses the browser's Cache API to store videos locally.
- * - First view: Streams from network, caches in background
- * - Subsequent views: Serves from local cache (instant playback)
+ * Uses Blob URLs to force-preload videos on iOS Safari.
+ * iOS Safari refuses to preload normal video URLs, but it WILL
+ * allow fetch() requests. We fetch the video, create a Blob URL,
+ * and feed that to the video player.
  */
 
 import { useState, useEffect, useRef } from 'react';
 
-const CACHE_NAME = 'mmvp-video-cache-v1';
-
-// In-memory cache for blob URLs (faster than Cache API lookups)
+// In-memory cache for blob URLs
 const blobUrlCache = new Map<string, string>();
 
-// Track which videos are currently being cached
-const cachingInProgress = new Set<string>();
+// Track which videos are currently being fetched
+const fetchingInProgress = new Set<string>();
+
+// Pending callbacks for videos being fetched
+const pendingCallbacks = new Map<string, ((url: string) => void)[]>();
 
 /**
- * Check if Cache API is available
+ * Fetch video and create blob URL
  */
-const isCacheApiAvailable = () => {
-  return typeof caches !== 'undefined';
-};
-
-/**
- * Generate a cache key from URL
- */
-const getCacheKey = (url: string): string => {
-  // Normalize URL and remove query params for consistent caching
-  try {
-    const urlObj = new URL(url, window.location.origin);
-    return urlObj.pathname;
-  } catch {
-    return url;
-  }
-};
-
-/**
- * Try to get video from cache
- */
-const getFromCache = async (url: string): Promise<string | null> => {
-  // First check in-memory blob cache (fastest)
-  const cacheKey = getCacheKey(url);
-  if (blobUrlCache.has(cacheKey)) {
-    return blobUrlCache.get(cacheKey)!;
+const fetchVideoAsBlob = async (remoteUrl: string): Promise<string> => {
+  // Check memory cache first
+  if (blobUrlCache.has(remoteUrl)) {
+    return blobUrlCache.get(remoteUrl)!;
   }
 
-  // Then check Cache API
-  if (!isCacheApiAvailable()) return null;
+  // If already fetching, wait for it
+  if (fetchingInProgress.has(remoteUrl)) {
+    return new Promise((resolve) => {
+      const callbacks = pendingCallbacks.get(remoteUrl) || [];
+      callbacks.push(resolve);
+      pendingCallbacks.set(remoteUrl, callbacks);
+    });
+  }
+
+  fetchingInProgress.add(remoteUrl);
 
   try {
-    const cache = await caches.open(CACHE_NAME);
-    const response = await cache.match(url);
-    
-    if (response) {
-      // Convert to blob URL for faster subsequent access
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      blobUrlCache.set(cacheKey, blobUrl);
-      return blobUrl;
+    // Fetch the video file
+    const response = await fetch(remoteUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
     }
+
+    // Convert to Blob
+    const blob = await response.blob();
+
+    // Create Object URL (acts like a local file)
+    const blobUrl = URL.createObjectURL(blob);
+
+    // Cache it
+    blobUrlCache.set(remoteUrl, blobUrl);
+
+    // Notify any pending callbacks
+    const callbacks = pendingCallbacks.get(remoteUrl) || [];
+    callbacks.forEach(cb => cb(blobUrl));
+    pendingCallbacks.delete(remoteUrl);
+
+    return blobUrl;
   } catch (error) {
-    console.warn('Cache read error:', error);
-  }
-
-  return null;
-};
-
-/**
- * Cache video in background
- */
-const cacheInBackground = async (url: string): Promise<void> => {
-  const cacheKey = getCacheKey(url);
-  
-  // Don't cache if already cached or in progress
-  if (blobUrlCache.has(cacheKey) || cachingInProgress.has(url)) {
-    return;
-  }
-
-  if (!isCacheApiAvailable()) return;
-
-  cachingInProgress.add(url);
-
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    
-    // Check if already in Cache API
-    const existing = await cache.match(url);
-    if (existing) {
-      cachingInProgress.delete(url);
-      return;
-    }
-
-    // Fetch and cache
-    const response = await fetch(url);
-    if (response.ok) {
-      // Clone response before caching (response can only be consumed once)
-      const responseClone = response.clone();
-      await cache.put(url, responseClone);
-      
-      // Also store in memory blob cache
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      blobUrlCache.set(cacheKey, blobUrl);
-    }
-  } catch (error) {
-    console.warn('Cache write error:', error);
+    console.warn('Video fetch failed, using direct URL:', error);
+    // Notify pending callbacks with original URL
+    const callbacks = pendingCallbacks.get(remoteUrl) || [];
+    callbacks.forEach(cb => cb(remoteUrl));
+    pendingCallbacks.delete(remoteUrl);
+    return remoteUrl;
   } finally {
-    cachingInProgress.delete(url);
+    fetchingInProgress.delete(remoteUrl);
   }
 };
 
 /**
- * Preload a video into cache without blocking
- */
-export const preloadToCache = (url: string): void => {
-  cacheInBackground(url);
-};
-
-/**
- * Hook to get cached video source
- * Returns the URL to use (either cached blob URL or original network URL)
+ * Hook to get cached video source as Blob URL
+ * This forces iOS Safari to actually load the video
  */
 export const useVideoCache = (remoteUrl: string, shouldLoad: boolean = true) => {
   const [source, setSource] = useState<string>(remoteUrl);
+  const [isLoading, setIsLoading] = useState(true);
   const [isCached, setIsCached] = useState(false);
   const mountedRef = useRef(true);
 
@@ -133,38 +88,46 @@ export const useVideoCache = (remoteUrl: string, shouldLoad: boolean = true) => 
   }, []);
 
   useEffect(() => {
-    if (!remoteUrl || !shouldLoad) return;
+    if (!remoteUrl || !shouldLoad) {
+      setIsLoading(false);
+      return;
+    }
 
-    const loadVideo = async () => {
-      // Check if already in cache
-      const cachedUrl = await getFromCache(remoteUrl);
-      
-      if (cachedUrl && mountedRef.current) {
-        // Cache HIT - use local blob URL
-        setSource(cachedUrl);
-        setIsCached(true);
-        return;
-      }
+    // Check if already cached
+    if (blobUrlCache.has(remoteUrl)) {
+      setSource(blobUrlCache.get(remoteUrl)!);
+      setIsCached(true);
+      setIsLoading(false);
+      return;
+    }
 
-      // Cache MISS - use network URL and cache in background
+    // Start loading
+    setIsLoading(true);
+
+    // Fetch and create blob URL
+    fetchVideoAsBlob(remoteUrl).then((blobUrl) => {
       if (mountedRef.current) {
-        setSource(remoteUrl);
-        setIsCached(false);
+        setSource(blobUrl);
+        setIsCached(blobUrl !== remoteUrl);
+        setIsLoading(false);
       }
-
-      // Start background caching
-      cacheInBackground(remoteUrl);
-    };
-
-    loadVideo();
+    });
   }, [remoteUrl, shouldLoad]);
 
-  return { source, isCached };
+  return { source, isCached, isLoading };
+};
+
+/**
+ * Preload a video into blob cache
+ */
+export const preloadToCache = (url: string): void => {
+  if (url && !blobUrlCache.has(url) && !fetchingInProgress.has(url)) {
+    fetchVideoAsBlob(url);
+  }
 };
 
 /**
  * Preload multiple videos into cache
- * Call this on component mount to pre-cache upcoming videos
  */
 export const preloadVideos = (urls: string[]): void => {
   urls.forEach(url => {
@@ -175,22 +138,11 @@ export const preloadVideos = (urls: string[]): void => {
 };
 
 /**
- * Clear the video cache (useful for debugging or storage management)
+ * Clear the video cache
  */
-export const clearVideoCache = async (): Promise<void> => {
-  // Clear blob URLs
+export const clearVideoCache = (): void => {
   blobUrlCache.forEach((blobUrl) => {
     URL.revokeObjectURL(blobUrl);
   });
   blobUrlCache.clear();
-
-  // Clear Cache API
-  if (isCacheApiAvailable()) {
-    try {
-      await caches.delete(CACHE_NAME);
-    } catch (error) {
-      console.warn('Cache clear error:', error);
-    }
-  }
 };
-
