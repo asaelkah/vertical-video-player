@@ -326,10 +326,20 @@ export function VerticalPlayer({
   // Helpers
   const hasVideo = (m: typeof moments[0]) => m.type === "video" || m.type === "ad";
 
-  // Scroll to initial index on mount
+  // Scroll to initial index IMMEDIATELY on mount (no animation, no delay)
+  const hasScrolledRef = useRef(false);
   useEffect(() => {
-    if (initialIndex > 0 && sectionRefs.current[initialIndex]) {
-      sectionRefs.current[initialIndex]?.scrollIntoView({ behavior: "auto" });
+    if (initialIndex > 0 && !hasScrolledRef.current) {
+      hasScrolledRef.current = true;
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        const container = containerRef.current;
+        if (container && sectionRefs.current[initialIndex]) {
+          // Calculate exact scroll position
+          const sectionHeight = container.clientHeight;
+          container.scrollTop = sectionHeight * initialIndex;
+        }
+      });
     }
   }, [initialIndex]);
 
@@ -356,23 +366,34 @@ export function VerticalPlayer({
 
   // Viewability detection using Intersection Observer
   // This determines which video is "Active"
+  const isInitializedRef = useRef(false);
   useEffect(() => {
+    // Delay observer setup to prevent firing during initial scroll
+    const setupTimer = setTimeout(() => {
+      isInitializedRef.current = true;
+    }, 100);
+
     observerRef.current = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
             const idx = Number(entry.target.getAttribute("data-index"));
+            // Only update if initialized OR if it's the initial index
             if (!isNaN(idx) && idx !== currentIndex) {
-              setCurrentIndex(idx);
-              setProgress(0);
-              setCurrentTime(0);
-              setPaused(false);
+              if (isInitializedRef.current || idx === initialIndex) {
+                setCurrentIndex(idx);
+                setProgress(0);
+                setCurrentTime(0);
+                setPaused(false);
+              }
             }
           }
         });
       },
       { threshold: 0.5 }
     );
+
+    return () => clearTimeout(setupTimer);
 
     sectionRefs.current.forEach((section) => {
       if (section) observerRef.current?.observe(section);
