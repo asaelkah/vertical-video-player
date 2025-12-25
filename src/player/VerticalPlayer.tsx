@@ -337,9 +337,12 @@ export function VerticalPlayer({
   useEffect(() => {
     markUserInteraction();
     
-    // Preload ALL videos using blob caching (critical for iOS Safari)
-    // Preload first few videos using link hints
-    moments.slice(0, 4).forEach((m) => {
+    // Preload videos AROUND the initial index, not from start
+    // This ensures the clicked video loads first
+    const startIdx = Math.max(0, initialIndex - 1);
+    const endIdx = Math.min(moments.length, initialIndex + 3);
+    
+    moments.slice(startIdx, endIdx).forEach((m) => {
       if (m.type === "video" || m.type === "ad") {
         const src = m.type === "video" ? (m as VideoMoment).src : (m as AdMoment).src;
         const link = document.createElement("link");
@@ -349,7 +352,7 @@ export function VerticalPlayer({
         document.head.appendChild(link);
       }
     });
-  }, [moments]);
+  }, [moments, initialIndex]);
 
   // Viewability detection using Intersection Observer
   // This determines which video is "Active"
